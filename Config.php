@@ -108,7 +108,7 @@ class Config
 
     public function __parse_script_path($value, $tag, $flags)
     {
-        return $this->script_path . DIRECTORY_SEPARATOR . $value;
+        return $this->script_path . ($value ? DIRECTORY_SEPARATOR . $value : '');
     }
 
     public function __parse_read($value, $tag, $flags)

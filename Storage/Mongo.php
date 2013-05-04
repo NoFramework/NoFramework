@@ -85,16 +85,21 @@ class Mongo extends \NoFramework\Storage
     {
         $new_object = [];
 
-
         foreach ( $fields as $field ) {
             if ( false !== strpos($field, '.') ) {
                 $value = &$object;
+                $new_field = [];
 
                 foreach ( explode('.', $field) as $field_part ) {
+                    if (!isset($value[$field_part])) {
+                        break;
+                    }
+
                     $value = &$value[$field_part];
+                    $new_field[] = $field_part;
                 }
 
-                $new_object[$field] = $value;
+                $new_object[implode('.', $new_field)] = $value;
 
             } else {
                 $new_object[$field] = isset($object[$field]) ? $object[$field] : null; 

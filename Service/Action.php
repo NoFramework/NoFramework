@@ -13,6 +13,16 @@ abstract class Action
 {
     use \NoFramework\MagicProperties;
 
-    abstract public function run($parameters = []);
+    protected function __property_log()
+    {
+        return new \NoFramework\Log\Output;
+    }
+
+    protected function __property_error_log()
+    {
+        return new \NoFramework\Log\Error;
+    }
+
+    abstract public function run();
 }
 

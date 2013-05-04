@@ -8,7 +8,6 @@
  */
 
 namespace NoFramework\Service;
-use \NoFramework\Log;
 
 class Application extends \NoFramework\Application
 {
@@ -23,11 +22,6 @@ class Application extends \NoFramework\Application
         return $run;
     }
 
-    protected function __property_error_log()
-    {
-        return new Log\Error;
-    }
-
     protected function main()
     {
        foreach ($this->run as $action) {
@@ -35,35 +29,17 @@ class Application extends \NoFramework\Application
        } 
     }
 
-    protected function logError($e)
-    {
-        if ( $this->error_log ) {
-            $this->error_log->write((string)$e);
-        }
-
-        return $this;
-    }
-
     public function start($main = false)
     {
-        if ( $this->pidfile ) {
-            if ( $this->pidfile->check($this->timeout) ) {
-                exit;
+        if ($this->pidfile) {
+            if (!$this->pidfile->check($this->timeout)) {
+                $this->pidfile->write();
+                $result = parent::start($main);
+                $this->pidfile->delete();
+                return $result;
             }
-
-            $this->pidfile->write();
-        }
-
-        try {
-            parent::start($main);
-
-        } catch ( \Exception $e ) {
-            $this->logError($e);
-            exit;
-        }
-
-        if ( $this->pidfile ) {
-            $this->pidfile->delete();
+        } else {
+            return parent::start($main);
         }
     }
 }
