@@ -17,21 +17,15 @@ class Factory implements \ArrayAccess
     }
 
     protected $namespace;
-    protected $default;
 
     private $root_id;
     private static $root = [];
 
     public function __construct($state = null)
     {
-        foreach ([
-            'namespace',
-            'default'
-        ] as $property) {
-            if (isset($state[$property])) {
-                $this->$property = $state[$property];
-                unset($state['property']);
-            }
+        if (isset($state['namespace'])) {
+            $this->namespace = $state['namespace'];
+            unset($state['namespace']);
         }
 
         if ($state) {
@@ -194,7 +188,6 @@ class Factory implements \ArrayAccess
             $class->instance->root_id = $this->root_id;
             $class->instance->__construct(array_merge([
                 'namespace' => $this->namespace,
-                'default' => $this->default
             ], $state));
 
         } else {
@@ -209,10 +202,6 @@ class Factory implements \ArrayAccess
                 }
 
                 unset($state['construct']);
-            }
-
-            if ($this->default) {
-                $state = array_merge($this->default, $state);
             }
 
             if ($state) {
