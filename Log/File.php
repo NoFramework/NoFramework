@@ -39,6 +39,11 @@ class File extends \NoFramework\Log
         );
     }
 
+    public function setPath( $path )
+    {
+        $this->path = $path;
+    }
+
     public function __destruct()
     {
         if (isset($this->handle) and is_resource($this->handle)) {
