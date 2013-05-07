@@ -24,9 +24,13 @@ class Application extends \NoFramework\Application
 
     protected function main()
     {
-       foreach ($this->run as $action) {
-           $this->action->$action->run();
-       } 
+        foreach ($this->run as $action) {
+            try {
+                $this->action->$action->run();
+            } catch (\Exception $e) {
+                $this->action->$action->error_log->write($e);
+            } 
+        }
     }
 
     public function start($main = false)
