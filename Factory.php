@@ -18,8 +18,8 @@ class Factory implements \ArrayAccess
 
     protected $namespace;
 
-    private $root_id;
-    private static $root = [];
+    private $universe_id;
+    private static $universe = [];
 
     public function __construct($state = null)
     {
@@ -31,8 +31,10 @@ class Factory implements \ArrayAccess
         if ($state) {
             $this->__property['$unresolved'] = $state;
 
-            if (is_null($this->root_id)) {
-                self::$root[$this->root_id = spl_object_hash($this)] = $this;
+            if (is_null($this->universe_id)) {
+                self::$universe[
+                    $this->universe_id = spl_object_hash($this)
+                ] = $this;
             }
         }
     }
@@ -67,23 +69,23 @@ class Factory implements \ArrayAccess
 
     public function release()
     {
-        if (isset(self::$root[$this->root_id])) {
-            unset(self::$root[$this->root_id]);
+        if (isset(self::$universe[$this->universe_id])) {
+            unset(self::$universe[$this->universe_id]);
         }
     }
 
-    public static function walk($closure)
+    public static function walkUniverse($closure)
     {
-        array_walk(self::$root, $closure);
+        array_walk(self::$universe, $closure);
     }
 
     public static function single($state = null)
     {
-        if (!$root = reset(self::$root)) {
+        if (!$universe = reset(self::$universe)) {
             return new static($state);
 
         } elseif (!$state) {
-            return $root;
+            return $universe;
 
         } else {
             trigger_error(sprintf(
@@ -143,8 +145,8 @@ class Factory implements \ArrayAccess
 
     protected function __operator_reuse($value)
     {
-        if (isset(self::$root[$this->root_id])) {
-            $out = self::$root[$this->root_id];
+        if (isset(self::$universe[$this->universe_id])) {
+            $out = self::$universe[$this->universe_id];
 
             foreach (explode('.', $value) as $property) {
                 $out = $out->$property;
@@ -154,7 +156,7 @@ class Factory implements \ArrayAccess
 
         } else {
             trigger_error(sprintf(
-                'Cannot not reuse \'%s\', factory root is released',
+                'Cannot not reuse \'%s\', factory universe is released',
                 $value
             ), E_USER_NOTICE);
         }
@@ -185,7 +187,7 @@ class Factory implements \ArrayAccess
         unset($state['class']);
 
         if ($class->instance instanceof self) {
-            $class->instance->root_id = $this->root_id;
+            $class->instance->universe_id = $this->universe_id;
             $class->instance->__construct(array_merge([
                 'namespace' => $this->namespace,
             ], $state));
