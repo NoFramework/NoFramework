@@ -170,7 +170,7 @@ class Mongo extends \NoFramework\Storage
         if ( $fields ) {
             $result = $this->flatternFields($result, $fields);
         }
-        return 1 === count($fields) ? $result[$fields[0]] : $result;
+        return 1 === count($fields) ? (isset($result[$fields[0]]) ? $result[$fields[0]] : false) : $result;
 	}
 
 	public function update($parameters) {
