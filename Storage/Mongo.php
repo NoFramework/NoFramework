@@ -185,10 +185,18 @@ class Mongo extends \NoFramework\Storage
 
 	public function remove($parameters) {
 		extract($parameters);
-		return $this->connect()->selectCollection($collection)->remove($this->where($where), [
-            'w' => (int)$this->is_safe,
-            'justOne' => isset($justOne) ? (bool)$justOne : false
-        ]);
+        if (isset($fields)) {
+            return $this->connect()->selectCollection($collection)->update($this->where($where), ['$unset' => array_fill_keys($fields, true)], [
+                'w' => (int)$this->is_safe,
+                'upsert' => false,
+                'multiple' => true
+            ]);
+        } else {
+            return $this->connect()->selectCollection($collection)->remove($this->where($where), [
+                'w' => (int)$this->is_safe,
+                'justOne' => isset($justOne) ? (bool)$justOne : false
+            ]);
+        }
 	}
 
 	public function count($parameters) {
