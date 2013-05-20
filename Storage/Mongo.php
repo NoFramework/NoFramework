@@ -18,6 +18,7 @@ class Mongo extends \NoFramework\Storage
 	protected $port;
 	protected $database;
 	protected $is_safe = true;
+	protected $is_slave_ok = false;
 
 	public function connect() {
 		$out = new \MongoClient('mongodb://'.
@@ -25,7 +26,7 @@ class Mongo extends \NoFramework\Storage
             ($this->host?:'localhost').
             ($this->port?':'.$this->port:'').'/'.$this->database);
 
-        #print( spl_object_hash($out) . PHP_EOL );
+        \MongoCursor::$slaveOkay = $this->is_slave_ok;
 
 		return $out->selectDB($this->database);
     }
