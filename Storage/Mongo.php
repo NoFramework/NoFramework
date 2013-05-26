@@ -223,5 +223,12 @@ class Mongo extends \NoFramework\Storage
     public function newId($id = null) {
         return new \MongoId($id);
     }
+
+    public function ensureIndex($parameters) {
+		extract($parameters);
+		return $this->connect()->selectCollection($collection)->ensureIndex($index, [
+            'w' => (int)$this->is_safe
+        ]);
+	}
 }
 
