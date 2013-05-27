@@ -35,7 +35,7 @@ class Queue
     {
         if ($path = str_replace("\0", '', $path)) {
             if (!is_dir($path)) {
-                mkdir($path, $chmod_dir, true);
+                mkdir($path, $this->chmod_dir, true);
             }
         } else {
             throw new \InvalidArgumentException('Empty path');
