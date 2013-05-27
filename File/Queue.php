@@ -35,11 +35,7 @@ class Queue
     {
         if ($path = str_replace("\0", '', $path)) {
             if (!is_dir($path)) {
-                mkdir($path);
-
-                if ($this->chmod_dir) {
-                    chmod($path, $this->chmod_dir);
-                }
+                mkdir($path, $chmod_dir, true);
             }
         } else {
             throw new \InvalidArgumentException('Empty path');
@@ -51,7 +47,7 @@ class Queue
     public function getPathById($id)
     {
         return $this->ensurePath(
-            $this->ensurePath($this->path) .
+            $this->path .
             DIRECTORY_SEPARATOR .
             $this->normalizeId($id - $id % $this->files_per_dir)
         );
