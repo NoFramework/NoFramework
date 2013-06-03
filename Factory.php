@@ -16,6 +16,8 @@ class Factory implements \ArrayAccess
         getMagicProperty as getMagicPropertyCallback;
     }
 
+    use With;
+
     protected $namespace;
 
     private $universe_id;
