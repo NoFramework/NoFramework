@@ -116,7 +116,22 @@ class Mongo extends \NoFramework\Storage
         if( !isset($keys) || empty($keys) || !isset($initial) || empty($initial) || !isset($reduce) || empty($reduce) )
             throw new \InvalidArgumentException('Bad parametrs form group function'); 
 
-		$out = $this->connect()->selectCollection($collection)->group($keys,$initial,$reduce);
+        $options = [];
+
+        if (isset($condition)) {
+            $options['condition'] = $condition;
+        }
+
+        if (isset($finalize)) {
+            $options['finalize'] = $finalize;
+        }
+
+        if ($options) {
+            $out = $this->connect()->selectCollection($collection)->group($keys, $initial, $reduce, $options);
+        } else {
+            $out = $this->connect()->selectCollection($collection)->group($keys, $initial, $reduce);
+        }
+
 		return $out;
 	}
 
