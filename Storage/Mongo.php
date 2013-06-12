@@ -192,7 +192,7 @@ class Mongo extends \NoFramework\Storage
 	public function update($parameters) {
 		extract($parameters);
 
-		return $this->connect()->selectCollection($collection)->update($this->where($where), ['$set' => $set], [
+		return $this->connect()->selectCollection($collection)->update($this->where($where), isset($is_replace) and $is_replace ? $set : ['$set' => $set], [
             'w' => (int)$this->is_safe,
             'upsert' => isset($upsert) ? (bool)$upsert : false,
             'multiple' => true
