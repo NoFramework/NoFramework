@@ -195,7 +195,7 @@ class Mongo extends \NoFramework\Storage
 		return $this->connect()->selectCollection($collection)->update($this->where($where), (isset($is_replace) and $is_replace) ? $set : ['$set' => $set], [
             'w' => (int)$this->is_safe,
             'upsert' => isset($upsert) ? (bool)$upsert : false,
-            'multiple' => true
+            'multiple' => !isset($is_replace) or !$is_replace
         ]);
 	}
 
