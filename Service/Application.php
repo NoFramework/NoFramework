@@ -27,6 +27,7 @@ class Application extends \NoFramework\Application
         foreach ($this->run as $action) {
             try {
                 $this->action->$action->run();
+            } catch (Exception\Stop $e) {
             } catch (\Exception $e) {
                 $this->action->$action->error_log->write($e);
             } 
