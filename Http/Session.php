@@ -42,8 +42,9 @@ class Session implements \ArrayAccess
         }
     }
 
-    public function offsetGet($offset) {
-        return isset($_SESSION[$offset]) ? $_SESSION[$offset] : null;
+    public function &offsetGet($offset) {
+        $out = &$_SESSION[$offset];
+        return $out;
     }
 
     public function writeClose() {
