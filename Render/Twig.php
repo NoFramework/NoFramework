@@ -22,6 +22,13 @@ class Twig extends \NoFramework\Render
         return new \Twig_Environment($loader, $this->configure());
     }
 
+    protected function __property_loaded_template()
+    {
+        return $this->twig->loadTemplate(
+            $this->template . ($this->extension ? '.' . $this->extension : '')
+        );
+    }
+
     protected function configure()
     {
         $config = [];
@@ -33,10 +40,17 @@ class Twig extends \NoFramework\Render
         return $config;
     }
 
+    public function block($block, $data)
+    {
+        return $this->loaded_template->renderBlock(
+            $block,
+            is_array($data) ? $data : compact('data')
+        );
+    }
+
     public function __invoke($data)
     {
-        return $this->twig->render(
-            $this->template . ($this->extension ? '.' . $this->extension : ''),
+        return $this->loaded_template->render(
             is_array($data) ? $data : compact('data')
         );
     }
