@@ -40,19 +40,15 @@ class Twig extends \NoFramework\Render
         return $config;
     }
 
-    public function block($block, $data)
+    public function __invoke($data, $block = false)
     {
-        return $this->loaded_template->renderBlock(
-            $block,
-            is_array($data) ? $data : compact('data')
-        );
-    }
+        $data = is_array($data) ? $data : compact('data');
+        $template = $this->loaded_template;
 
-    public function __invoke($data)
-    {
-        return $this->loaded_template->render(
-            is_array($data) ? $data : compact('data')
-        );
+        return
+            false === $block
+            ? $template->render($data)
+            : $template->renderBlock($block, $data);
     }
 }
 
