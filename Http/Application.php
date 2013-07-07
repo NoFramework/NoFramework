@@ -88,9 +88,15 @@ abstract class Application extends \NoFramework\Application
 
     public function start($main = false)
     {
+        $jobs = [];
+
         try
         {
-            return parent::start($main);
+            $emit_jobs = function ($job) use (&$jobs) {
+                $jobs[] = $job;
+            };
+
+            return $main ? $main($emit_jobs, $this) : $this->main($emit_jobs);
         }
         catch (Exception\Redirect $e)
         {
@@ -103,6 +109,20 @@ abstract class Application extends \NoFramework\Application
         catch (\Exception $e)
         {
             $this->showError(new Exception\ErrorStatus(500, [], $e));
+        }
+
+        flush();
+
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        }
+
+        if (isset($this->session)) {
+            $this->session->writeClose();
+        }
+
+        foreach ($jobs as $job) {
+            $job();
         }
     }
 }
