@@ -96,7 +96,7 @@ abstract class Application extends \NoFramework\Application
                 $jobs[] = $job;
             };
 
-            return $main ? $main($emit_jobs, $this) : $this->main($emit_jobs);
+            $main ? $main($emit_jobs, $this) : $this->main($emit_jobs);
         }
         catch (Exception\Redirect $e)
         {
