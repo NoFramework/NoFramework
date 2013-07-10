@@ -38,7 +38,7 @@ trait MagicProperties
     {
         if (!isset($this->__property[$property])
             and !$this->isMagicProperty($property)
-            and !array_key_exists($property, get_object_vars($this))
+            and !property_exists($this, $property)
         ) {
             $this->$property = $value;
 

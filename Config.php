@@ -15,6 +15,8 @@ class Config
 
     protected $script_path;
     protected $config_path;
+    protected $cache_path;
+    protected $local_path;
 
     public function __construct($state = [])
     {
@@ -23,10 +25,34 @@ class Config
             ? $state['script_path']
             : dirname(realpath($_SERVER['SCRIPT_FILENAME']));
 
-        $this->config_path =
-            isset($state['config_path'])
-            ? $state['config_path']
-            : $this->script_path;
+        foreach ([
+            'config_path' => '.config' . DIRECTORY_SEPARATOR .
+                str_replace('\\', DIRECTORY_SEPARATOR,  __NAMESPACE__),
+            'cache_path' => '.cache',
+            'local_path' => '.local'
+        ] as $property => $find_path) {
+            $this->$property =
+                isset($state[$property])
+                ? $state[$property]
+                : $this->findPath($this->script_path, $find_path);
+        }
+    }
+
+    protected function findPath($start, $find)
+    {
+        $current = $start;
+        $found = false;
+
+        do {
+            if (is_dir($current . DIRECTORY_SEPARATOR . $find)) {
+                $found = $current . DIRECTORY_SEPARATOR . $find;
+                break;
+            }
+
+            $current = realpath($current . DIRECTORY_SEPARATOR . '..');
+        } while (DIRECTORY_SEPARATOR !== $current);
+
+        return $found ?: $start;
     }
 
     protected function getCallbacks()
@@ -43,7 +69,7 @@ class Config
         return $out;
     }
 
-    public function parseFile($input, $offset = 0, $pos = 0, &$ndocs = null)
+    public function withFile($input, $closure, $offset = 0, $pos = 0)
     {
         if (0 !== strpos($input, DIRECTORY_SEPARATOR)) {
             $input = $this->config_path . DIRECTORY_SEPARATOR . $input;
@@ -58,16 +84,22 @@ class Config
             $yaml_parse .= '_file'; 
         }
 
-        $out = $yaml_parse($input, $pos, $ndocs, $this->getCallbacks());
+        $closure(
+            $yaml_parse($input, $pos, $ndocs, $this->getCallbacks()),
+            $ndocs
+        );
         gc_collect_cycles();
-        return $out;
+        return $this;
     }
 
-    public function parseString($input, $pos = 0, &$ndocs = null)
+    public function withString($input, $closure, $pos = 0)
     {
-        $out = yaml_parse($input, $pos, $ndocs, $this->getCallbacks());
+        $closure(
+            yaml_parse($input, $pos, $ndocs, $this->getCallbacks()),
+            $ndocs
+        );
         gc_collect_cycles();
-        return $out;
+        return $this;
     }
 
     public function __parse_ini_set($value, $tag, $flags)
@@ -108,7 +140,20 @@ class Config
 
     public function __parse_script_path($value, $tag, $flags)
     {
-        return $this->script_path . ($value ? DIRECTORY_SEPARATOR . $value : '');
+        return $this->script_path .
+            ($value ? DIRECTORY_SEPARATOR . $value : '');
+    }
+
+    public function __parse_cache_path($value, $tag, $flags)
+    {
+        return $this->cache_path .
+            ($value ? DIRECTORY_SEPARATOR . $value : '');
+    }
+
+    public function __parse_local_path($value, $tag, $flags)
+    {
+        return $this->local_path .
+            ($value ? DIRECTORY_SEPARATOR . $value : '');
     }
 
     public function __parse_read($value, $tag, $flags)
@@ -124,7 +169,11 @@ class Config
                 $value = $value['filename'];
             }
 
-            return $this->parseFile($value, $offset);
+            $this->withFile($value, function ($in) use (&$out) {
+                $out = $in;
+            }, $offset);
+
+            return $out;
         }];
     }
 
@@ -140,6 +189,8 @@ class Config
 
     public function __parse_autoloadRegister($value, $tag, $flags)
     {
+        require_once __DIR__ . '/Autoload.php';
+
         $out = [];
 
         foreach ((array)$value as $state) {
@@ -158,10 +209,10 @@ class Config
             }
 
             if (0 !== strpos($state['path'], DIRECTORY_SEPARATOR)) {
-                $state['path'] =
-                    realpath(__DIR__ . DIRECTORY_SEPARATOR . '..') .
-                    DIRECTORY_SEPARATOR .
-                    $state['path'];
+                $state['path'] = realpath(
+                    __DIR__ . DIRECTORY_SEPARATOR . '..' .
+                    DIRECTORY_SEPARATOR . $state['path']
+                );
             }
 
             $out[] = (new $class($state))->register();
@@ -203,20 +254,29 @@ class Config
         return $error_handler;
     }
 
-    public static function read($filename, $offset = 0, $script_path = null)
+    public static function __callStatic($name, $arguments)
     {
-        require_once __DIR__ . '/Autoload.php';
-        (new Autoload)->register();
+        $filename = $name . '.yaml';
+        $offset = 0;
 
-        return self::factory((new static([
-            'script_path' => $script_path,
-            'config_path' => dirname(realpath($filename)),
-        ]))->parseFile($filename, $offset));
-    }
+        if (isset($arguments[0])) {
+            if (isset($arguments[1])) {
+                $filename = $arguments[0];
+                $offset = $arguments[1];
 
-    public static function factory($state = null)
-    {
-        return Factory::single($state);
+            } elseif (is_numeric($arguments[0])) {
+                $offset = $arguments[0];
+
+            } else {
+                $filename = $arguments[0];
+            }
+        }
+
+        (new static)->withFile($filename, function ($state) use ($name) {
+            Factory::$name($state);
+        }, $offset);
+
+        return Factory::$name();
     }
 }
 

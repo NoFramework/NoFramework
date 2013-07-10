@@ -16,8 +16,6 @@ class Factory implements \ArrayAccess
         getMagicProperty as getMagicPropertyCallback;
     }
 
-    use With;
-
     protected $namespace;
 
     private $root_id;
@@ -71,30 +69,28 @@ class Factory implements \ArrayAccess
 
     public function release()
     {
-        if (isset(self::$root[$this->root_id])) {
-            unset(self::$root[$this->root_id]);
-        }
+        unset(self::$root[$this->root_id]);
     }
 
-    public static function walkRoot($closure)
+    public static function __callStatic($name, $arguments)
     {
-        array_walk(self::$root, $closure);
-    }
+        if (!isset(self::$root[$name])) {
+            self::$root[$name] = (new \ReflectionClass(get_called_class()))
+                ->newInstanceWithoutConstructor();
+            self::$root[$name]->root_id = $name;
 
-    public static function single($state = null)
-    {
-        if (!$root = reset(self::$root)) {
-            return new static($state);
+            if (isset($arguments[0])) {
+                self::$root[$name]->__construct($arguments[0]);
+            }
 
-        } elseif (!$state) {
-            return $root;
-
-        } else {
+        } elseif (isset($arguments[0])) {
             trigger_error(sprintf(
-                '%s is already set',
-                __METHOD__
+                'Factory \'%s\' is already set',
+                $name
             ), E_USER_WARNING);
         }
+
+        return self::$root[$name];
     }
 
     protected function getOperator($value)
