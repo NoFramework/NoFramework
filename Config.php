@@ -189,8 +189,6 @@ class Config
 
     public function __parse_autoloadRegister($value, $tag, $flags)
     {
-        #require __DIR__ . '/Autoload.php';
-
         $out = [];
 
         foreach ((array)$value as $state) {
