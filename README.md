@@ -13,9 +13,6 @@ NoFramework. No problem.
 - immutable objects
 - hierarchical configuration
 
-Require:
-- pecl yaml
-
 How to use:
 ===========
 
