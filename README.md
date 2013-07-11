@@ -17,7 +17,31 @@ Require:
 - pecl yaml
 
 How to use:
+===========
 
+Minimal:
+```php
+<?php
+namespace NoFramework;
+
+require __DIR__ . '/path/to/NoFramework/Autoload.php';
+
+(new Autoload)->register();
+
+(new Factory([
+    'namespace' => __NAMESPACE__,
+    'app' => ['$new' => [
+        'class' => 'Application',
+        'log' => ['$new' => [
+            'class' => 'Log\Output'
+        ]]
+    ]]
+]))->app->start(function ($app) {
+    $app->log->write('ok');
+});
+```
+
+Extended with yaml config (require pecl yaml):
 ```php
 <?php
 require __DIR__ . '/path/to/NoFramework/Config.php';
