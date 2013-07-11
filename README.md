@@ -3,7 +3,6 @@ NoFramework
 
 NoFramework. No problem.
 
-- php >=5.4
 - PSR-0 file autoloading
 - dependency injection
 - lazy object creation
@@ -12,6 +11,7 @@ NoFramework. No problem.
 - hierarchical configuration
 
 Require:
+- php >=5.4
 - pecl yaml
 
 How to use:
