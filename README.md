@@ -14,6 +14,9 @@ NoFramework
 
 Visit http://noframework.com for more information.
 
+Require:
+- pecl yaml
+
 How to use:
 
 ```php
