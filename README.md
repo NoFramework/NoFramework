@@ -83,7 +83,7 @@ application: !new
 
 a: !new
   b: !new
-    c: Any hierarchy
+    c: Any object hierarchy
 ```
 
 Visit http://noframework.com for more information.
