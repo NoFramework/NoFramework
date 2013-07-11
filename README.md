@@ -16,7 +16,7 @@ Visit http://noframework.com for more information.
 
 How to use:
 
-<?php
+```php
 require '/path/to/NoFramework/Config.php';
 NoFramework\Config::random_name(__FILE__, __COMPILER_HALT_OFFSET__);
 
@@ -42,4 +42,5 @@ application: !new
   class: Application
   log: !new NoFramework\Log\Output
   autoload: !reuse autoload
+```
 
