@@ -61,11 +61,14 @@ class Application extends \NoFramework\Application
         $this->log->output
         -> write(print_r($this, true))
         -> write(print_r($this->autoload, true))
-        -> write(print_r($this, true))
+        #-> write(print_r($this, true))
         -> write($this->period)
         -> write(print_r($this->lazy_read, true))
+        #-> write(print_r($this, true))
         -> write($this->reused)
-        -> write($this->injected_object->getMagic()->memo);
+        #-> write(print_r($this, true))
+        -> write($this->injected_object->getMagic()->memo)
+        -> write(print_r($this, true));
 
         $this->log->file
         -> write($this->injected_object->getMagic()->memo);
