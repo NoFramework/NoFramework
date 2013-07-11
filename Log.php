@@ -21,13 +21,14 @@ abstract class Log
 
     public function write($message, $type = false)
     {
-        return
-            (false === $this->type_filter
-            or false === $type
-            or false !== array_search($type, $this->type_filter)
-            )
-            ? $this->onWrite($message, $type)
-            : false;
+        if (false === $this->type_filter
+        or false === $type
+        or false !== array_search($type, $this->type_filter)
+        ) {
+            $this->onWrite($message, $type);
+        }
+
+        return $this;
     }
 }
 
