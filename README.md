@@ -20,7 +20,7 @@ How to use:
 
 ```php
 <?php
-require __DIR__ . '/natly.ru/classes/NoFramework/Config.php';
+require __DIR__ . '/path/to/NoFramework/Config.php';
 NoFramework\Config::random_name(__FILE__, __COMPILER_HALT_OFFSET__);
 
 class Application extends \NoFramework\Application
