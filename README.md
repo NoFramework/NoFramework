@@ -1,17 +1,18 @@
 NoFramework
 ===========
+(PHP 5 >= 5.4)
 
 NoFramework. No problem.
 
 - PSR-0 file autoloading
 - dependency injection
+- totally avoid globals and defines
 - lazy object creation
 - magic memoization
 - immutable objects
 - hierarchical configuration
 
 Require:
-- php >=5.4
 - pecl yaml
 
 How to use:
@@ -21,6 +22,26 @@ How to use:
 require __DIR__ . '/path/to/NoFramework/Config.php';
 NoFramework\Config::random_name(__FILE__, __COMPILER_HALT_OFFSET__);
 
+class Standard
+{
+    protected $magic;
+
+    public function getMagic()
+    {
+        return $this->magic;
+    }
+}
+
+class Magic
+{
+    use \NoFramework\MagicProperties;
+
+    protected function __property_memo()
+    {
+        return sprintf('[memoization] I am default, but calculated: %d', mt_rand(0, 100));
+    }
+}
+
 class Application extends \NoFramework\Application
 {
     protected $log;
@@ -28,11 +49,7 @@ class Application extends \NoFramework\Application
     protected $period;
     protected $dynamic_config_path;
     protected $got_from_dynamic;
-
-    protected function __property_magic_memo()
-    {
-        return sprintf('I am default, but calculated: %d', mt_rand(0, 100));
-    }
+    protected $injected_object;
 
     protected function main()
     {
@@ -45,16 +62,18 @@ class Application extends \NoFramework\Application
         -> write($this->period)
         -> write(print_r($this->got_from_dynamic, true))
         -> write($this->reused)
-        -> write($this->magic_memo);
+        -> write($this->injected_object->getMagic()->memo);
 
         $this->log->file
-        -> write($this->magic_memo);
+        -> write($this->injected_object->getMagic()->memo);
     }
 }
 
 NoFramework\Factory::random_name()->application->start();
 
 __halt_compiler();
+
+namespace: NoFramework
 
 ini_set: !ini_set
   display_errors: 1
@@ -68,22 +87,27 @@ autoload: !autoloadRegister
 error_handler: !errorHandlerRegister
 
 application: !new
-  class: Application
+  class: \Application
   log: !new
-    output: !new NoFramework\Log\Output
+    output: !new Log\Output
     file: !new
-      class: NoFramework\Log\File
+      class: Log\File
       path: !script_path test.log
   autoload: !reuse autoload
   period: !period 1y 2m 3d t 4h 5m 6s
   dynamic_config: !script_path test_dynamic.yaml
   got_from_dynamic: !read test_dynamic.yaml
+  injected_object: !new
+    class: \Standard
+    magic: !new
+      class: \Magic
+      #memo: Try to uncomment me
   reused: !reuse a.b.c
-  #magic_memo: Try to uncomment me
 
 a: !new
   b: !new
     c: Any object hierarchy
+
 ```
 
 Visit http://noframework.com for more information.
