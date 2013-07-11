@@ -189,7 +189,7 @@ class Config
 
     public function __parse_autoloadRegister($value, $tag, $flags)
     {
-        require_once __DIR__ . '/Autoload.php';
+        #require __DIR__ . '/Autoload.php';
 
         $out = [];
 
@@ -213,6 +213,12 @@ class Config
                     __DIR__ . DIRECTORY_SEPARATOR . '..' .
                     DIRECTORY_SEPARATOR . $state['path']
                 );
+            }
+
+            if (!class_exists($class, false)) {
+                require __DIR__ . DIRECTORY_SEPARATOR .
+                '..' . DIRECTORY_SEPARATOR .
+                str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php';
             }
 
             $out[] = (new $class($state))->register();
