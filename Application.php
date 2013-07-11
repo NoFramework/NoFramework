@@ -15,7 +15,11 @@ class Application
 
     protected function main()
     {
-        trigger_error(sprintf('%s::%s is not implemented', get_called_class(), __FUNCTION__), E_USER_WARNING);
+        trigger_error(sprintf(
+            '%s::%s is not implemented',
+            get_called_class(),
+            __FUNCTION__
+        ), E_USER_WARNING);
     }
 
     public function start($main = false)

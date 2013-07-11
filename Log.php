@@ -11,7 +11,7 @@ namespace NoFramework;
 
 abstract class Log
 {
-    protected /*array | false*/ $type_filter = false;
+    protected $type_filter = false;
 
     abstract protected function onWrite($message, $type);
 

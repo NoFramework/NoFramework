@@ -191,8 +191,11 @@ class Config
     {
         $out = [];
 
-        foreach ((array)$value as $state) {
-            if (is_string($state)) {
+        foreach ((array)$value ?: [null] as $state) {
+            if (is_null($state)) {
+                $state = ['namespace' => __NAMESPACE__];
+
+            } elseif (is_string($state)) {
                 $state = [
                     'namespace' => $state,
                     'path' => str_replace('\\', DIRECTORY_SEPARATOR, $state)
@@ -206,7 +209,9 @@ class Config
                 unset($state['class']);
             }
 
-            if (0 !== strpos($state['path'], DIRECTORY_SEPARATOR)) {
+            if (isset($state['path']) and
+                0 !== strpos($state['path'], DIRECTORY_SEPARATOR)
+            ) {
                 $state['path'] = realpath(
                     __DIR__ . DIRECTORY_SEPARATOR . '..' .
                     DIRECTORY_SEPARATOR . $state['path']
