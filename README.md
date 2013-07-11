@@ -11,8 +11,6 @@ NoFramework. No problem.
 - immutable objects
 - hierarchical configuration
 
-Visit http://noframework.com for more information.
-
 Require:
 - pecl yaml
 
@@ -87,4 +85,6 @@ a: !new
   b: !new
     c: Any hierarchy
 ```
+
+Visit http://noframework.com for more information.
 
