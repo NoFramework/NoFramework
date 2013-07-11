@@ -38,7 +38,7 @@ class Magic
 
     protected function __property_memo()
     {
-        return sprintf('[memoization] I am default, but calculated: %d', mt_rand(0, 100));
+        return sprintf('I am default, but calculated: %d', mt_rand(0, 100));
     }
 }
 
