@@ -13,7 +13,7 @@ NoFramework. No problem.
 - immutable objects
 - hierarchical configuration
 
-How to use:
+How to use
 ===========
 
 Minimal:
