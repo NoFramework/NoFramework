@@ -47,20 +47,20 @@ class Application extends \NoFramework\Application
     protected $log;
     protected $autoload;
     protected $period;
-    protected $dynamic_config_path;
-    protected $got_from_dynamic;
+    protected $lazy_config_path;
+    protected $lazy_read;
     protected $injected_object;
 
     protected function main()
     {
-        file_put_contents($this->dynamic_config, yaml_emit(['rand' => mt_rand()]));
+        file_put_contents($this->lazy_config_path, yaml_emit(['rand' => mt_rand()]));
 
         $this->log->output
         -> write(print_r($this, true))
         -> write(print_r($this->autoload, true))
         -> write(print_r($this, true))
         -> write($this->period)
-        -> write(print_r($this->got_from_dynamic, true))
+        -> write(print_r($this->lazy_read, true))
         -> write($this->reused)
         -> write($this->injected_object->getMagic()->memo);
 
@@ -95,8 +95,8 @@ application: !new
       path: !script_path test.log
   autoload: !reuse autoload
   period: !period 1y 2m 3d t 4h 5m 6s
-  dynamic_config: !script_path test_dynamic.yaml
-  got_from_dynamic: !read test_dynamic.yaml
+  lazy_config_path: !script_path test_lazy.yaml
+  lazy_read: !read test_lazy.yaml
   injected_object: !new
     class: \Standard
     magic: !new
