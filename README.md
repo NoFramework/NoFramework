@@ -53,7 +53,9 @@ class Application extends \NoFramework\Application
 
     protected function main()
     {
-        file_put_contents($this->lazy_config_path, yaml_emit(['rand' => mt_rand()]));
+        file_put_contents($this->lazy_config_path, yaml_emit([
+            'rand' => mt_rand()
+        ]));
 
         $this->log->output
         -> write(print_r($this, true))
