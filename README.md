@@ -4,6 +4,7 @@ NoFramework
 
 NoFramework. No problem.
 
+- vim friendly
 - PSR-0 file autoloading
 - dependency injection
 - totally avoid globals and defines
