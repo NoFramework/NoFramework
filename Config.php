@@ -191,8 +191,8 @@ class Config
     {
         $out = [];
 
-        foreach ((array)$value ?: [null] as $state) {
-            if (is_null($state)) {
+        foreach ((array)$value as $state) {
+            if (!$state) {
                 $state = ['namespace' => __NAMESPACE__];
 
             } elseif (is_string($state)) {
