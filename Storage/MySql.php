@@ -67,8 +67,8 @@ class MySql extends \NoFramework\Storage
         return $this;
     }
 
-    public function insert($parameters) {
-        extract($parameters);
+    public function insert($parameter) {
+        extract($parameter);
 
         $this->open($link);
 
@@ -101,8 +101,8 @@ class MySql extends \NoFramework\Storage
         return $last_id;
     }
 
-    public function walk($parameters, $closure) {
-        extract($parameters);
+    public function walk($parameter, $closure) {
+        extract($parameter);
 
         $this->open($link);
 
@@ -124,18 +124,18 @@ class MySql extends \NoFramework\Storage
         return $this;
     }
 
-    public function find($parameters) {
+    public function find($parameter) {
         $out = [];
-        $this->walk($parameters, function ($item) use (&$out) {
+        $this->walk($parameter, function ($item) use (&$out) {
             $out[] = $item;
         });
 
         return $out;
     }
 
-    public function findOne($parameters) {
-        $parameters['limit'] = 1;
-        $out = $this->find($parameters);
+    public function findOne($parameter) {
+        $parameter['limit'] = 1;
+        $out = $this->find($parameter);
 
         if ( count($out) == 0 )
             return false;
@@ -146,8 +146,8 @@ class MySql extends \NoFramework\Storage
         return $out[0];
     }
 
-    public function update($parameters) {
-        extract($parameters);
+    public function update($parameter) {
+        extract($parameter);
 
         $this->open($link);
 
@@ -166,8 +166,8 @@ class MySql extends \NoFramework\Storage
         return $affected_rows;
     }
 
-    public function remove($parameters) {
-        extract($parameters);
+    public function remove($parameter) {
+        extract($parameter);
 
         $this->open($link);
 
@@ -184,8 +184,8 @@ class MySql extends \NoFramework\Storage
         return $affected_rows;
     }
 
-    public function count($parameters) {
-        extract($parameters);
+    public function count($parameter) {
+        extract($parameter);
 
         $this->open($link);
 

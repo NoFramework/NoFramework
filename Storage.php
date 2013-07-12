@@ -11,13 +11,13 @@ namespace NoFramework;
 
 abstract class Storage
 {
-    abstract public function insert($parameters);
-    abstract public function find($parameters);
-    abstract public function walk($parameters, $closure);
-    abstract public function findOne($parameters);
-    abstract public function update($parameters);
-    abstract public function remove($parameters);
-    abstract public function count($parameters);
+    abstract public function insert($parameter);
+    abstract public function find($parameter);
+    abstract public function walk($parameter, $closure);
+    abstract public function findOne($parameter);
+    abstract public function update($parameter);
+    abstract public function remove($parameter);
+    abstract public function count($parameter);
     
     abstract public function listCollections();
 

@@ -31,8 +31,8 @@ class Mongo extends \NoFramework\Storage
 		return $out->selectDB($this->database);
     }
 
-    public function insert($parameters) {
-		extract($parameters);
+    public function insert($parameter) {
+		extract($parameter);
 		$result = $this->connect()->selectCollection($collection)->insert($set, [
             'w' => (int)$this->is_safe
         ]);
@@ -110,8 +110,8 @@ class Mongo extends \NoFramework\Storage
         return $new_object;
     }
 
-	public function group($parameters) {
-		extract($parameters);
+	public function group($parameter) {
+		extract($parameter);
 
         if( !isset($keys) || empty($keys) || !isset($initial) || empty($initial) || !isset($reduce) || empty($reduce) )
             throw new \InvalidArgumentException('Bad parametrs form group function'); 
@@ -135,8 +135,8 @@ class Mongo extends \NoFramework\Storage
 		return $out;
 	}
 
-	public function _find($parameters) {
-		extract($parameters);
+	public function _find($parameter) {
+		extract($parameter);
 		$out = $this->connect()->selectCollection($collection)->find($this->where($where), isset($fields)?$fields:[]);
 		if (isset($sort) and $sort) $out = $out->sort($sort);
 		if (isset($skip) and $skip) $out = $out->skip($skip);
@@ -146,14 +146,14 @@ class Mongo extends \NoFramework\Storage
 		return $out;
 	}
 
-	public function find($parameters) {
-        $out = $this->_find($parameters);
+	public function find($parameter) {
+        $out = $this->_find($parameter);
 
-        if ( isset($parameters['fields']) ) {
+        if ( isset($parameter['fields']) ) {
             $flattern = [];
 
             foreach( $out as $key => $row ) {
-                $flattern[] = $this->flatternFields($row, $parameters['fields']);
+                $flattern[] = $this->flatternFields($row, $parameter['fields']);
             }
 
             return $flattern;
@@ -162,10 +162,10 @@ class Mongo extends \NoFramework\Storage
 		return $out;
 	}
 
-	public function walk($parameters, $closure) {
-		foreach( $this->_find($parameters) as $row ) {
-            if ( isset($parameters['fields']) ) {
-                $closure($this->flatternFields($row, $parameters['fields']));
+	public function walk($parameter, $closure) {
+		foreach( $this->_find($parameter) as $row ) {
+            if ( isset($parameter['fields']) ) {
+                $closure($this->flatternFields($row, $parameter['fields']));
             } else {
                 $closure($row);
             }
@@ -174,8 +174,8 @@ class Mongo extends \NoFramework\Storage
 		return $this;
 	}
 
-	public function findOne($parameters) {
-		extract($parameters);
+	public function findOne($parameter) {
+		extract($parameter);
         $fields = isset($fields) ? $fields : [];
 		$result =  $this->connect()->selectCollection($collection)->findOne($this->where($where), $fields);
 
@@ -189,8 +189,8 @@ class Mongo extends \NoFramework\Storage
         return 1 === count($fields) ? (isset($result[$fields[0]]) ? $result[$fields[0]] : false) : $result;
 	}
 
-	public function update($parameters) {
-		extract($parameters);
+	public function update($parameter) {
+		extract($parameter);
 
 		return $this->connect()->selectCollection($collection)->update($this->where($where), (isset($is_replace) and $is_replace) ? $set : ['$set' => $set], [
             'w' => (int)$this->is_safe,
@@ -199,10 +199,10 @@ class Mongo extends \NoFramework\Storage
         ]);
 	}
 
-	public function remove($parameters) {
-		extract($parameters);
-        if (isset($fields)) {
-            return $this->connect()->selectCollection($collection)->update($this->where($where), ['$unset' => array_fill_keys($fields, true)], [
+	public function remove($parameter) {
+		extract($parameter);
+        if (isset($fields) and $fields) {
+            return $this->connect()->selectCollection($collection)->update($this->where($where), ['$unset' => array_fill_keys((array)$fields, true)], [
                 'w' => (int)$this->is_safe,
                 'upsert' => false,
                 'multiple' => true
@@ -215,8 +215,8 @@ class Mongo extends \NoFramework\Storage
         }
 	}
 
-	public function count($parameters) {
-		extract($parameters);
+	public function count($parameter) {
+		extract($parameter);
 		return $this->connect()->selectCollection($collection)->count($this->where($where));
 	}
 
@@ -239,8 +239,8 @@ class Mongo extends \NoFramework\Storage
         return new \MongoId($id);
     }
 
-    public function ensureIndex($parameters) {
-		extract($parameters);
+    public function ensureIndex($parameter) {
+		extract($parameter);
 		return $this->connect()->selectCollection($collection)->ensureIndex($index, [
             'w' => (int)$this->is_safe
         ]);
