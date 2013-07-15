@@ -158,7 +158,7 @@ class Config
 
     public function __parse_read($value, $tag, $flags)
     {
-        return ['$' => function() use ($value) {
+        return ['$' => function($id = false) use ($value) {
             $offset = 0;
 
             if (isset($value['filename'])) {
@@ -172,6 +172,14 @@ class Config
             $this->withFile($value, function ($in) use (&$out) {
                 $out = $in;
             }, $offset);
+
+            if (
+                $id and
+                isset($out['$new']) and
+                !isset($out['$new']['local_reuse'])
+            ) {
+                $out['$new']['local_reuse'] = implode('.', $id);
+            }
 
             return $out;
         }];
@@ -263,21 +271,21 @@ class Config
         return $error_handler;
     }
 
-    public static function __callStatic($name, $arguments)
+    public static function __callStatic($name, $parameter)
     {
         $filename = $name . '.yaml';
         $offset = 0;
 
-        if (isset($arguments[0])) {
-            if (isset($arguments[1])) {
-                $filename = $arguments[0];
-                $offset = $arguments[1];
+        if (isset($parameter[0])) {
+            if (isset($parameter[1])) {
+                $filename = $parameter[0];
+                $offset = $parameter[1];
 
-            } elseif (is_numeric($arguments[0])) {
-                $offset = $arguments[0];
+            } elseif (is_numeric($parameter[0])) {
+                $offset = $parameter[0];
 
             } else {
-                $filename = $arguments[0];
+                $filename = $parameter[0];
             }
         }
 

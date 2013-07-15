@@ -11,29 +11,29 @@ namespace NoFramework\Http;
 
 abstract class Application extends \NoFramework\Application
 {
-    protected /*NoFramework\Factory*/ $controller;
+    protected $controller;
 
-    protected /*NoFramework\Http\Request*/ function __property_request()
+    protected function __property_request()
     {
         return new Request;
     }
 
-    protected /*NoFramework\Http\Response*/ function __property_response()
+    protected function __property_response()
     {
         return new Response;
     }
 
-    protected /*\NoFramework\Http\Session*/ function __property_session()
+    protected function __property_session()
     {
         return (new Session)->start();
     }
 
-    protected /*boolean*/ function __property_display_errors()
+    protected function __property_display_errors()
     {
         return ini_get('display_errors');
     }
 
-    protected /*NoFramework\Http\View*/ function __property_error_view()
+    protected function __property_error_view()
     {
         $view = new View;
         $view->response = $this->response;

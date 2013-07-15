@@ -17,31 +17,59 @@ class Factory implements \ArrayAccess
     }
 
     protected $namespace;
+    protected $propagate;
+    protected $local_reuse;
+    protected $auto;
 
-    private $root_id;
+    private $id;
     private static $root = [];
 
-    public function __construct($state = null)
+    public function __construct($state = null, $id = null)
     {
-        if (isset($state['namespace'])) {
-            $this->namespace = $state['namespace'];
-            unset($state['namespace']);
+        $state = (array)$state;
+
+        foreach ((array)$state as $property => $value) {
+            if ('id' === $property) {
+                trigger_error('Cannot set id', E_USER_WARNING);
+
+            } elseif (property_exists($this, $property)) {
+                if ($this->getOperator($value)) {
+                    unset($this->$property);
+                } else {
+                    $this->$property = $value;
+                    unset($state[$property]);
+                }
+            }
         }
 
         if ($state) {
             $this->__property['$unresolved'] = $state;
+        }
 
-            if (is_null($this->root_id)) {
-                self::$root[
-                    $this->root_id = spl_object_hash($this)
-                ] = $this;
-            }
+        $this->id = $id ? (array)$id : [spl_object_hash($this)];
+
+        if (!isset(self::$root[$this->id[0]])) {
+            self::$root[$this->id[0]] = $this;
         }
     }
 
-    public function newInstance($state)
+    public function newInstance($state, $id = false)
     {
-        return $this->__operator_new($state);
+        if (!$id or !isset($this->$id)) {
+            $object = $this->__operator_new(
+                is_string($state) ? ['class' => $state] : $state,
+                $id
+            );
+
+            if ($id) {
+                $this->$id = $object;
+            }
+        } else {
+            trigger_error(sprintf(
+                'Property \'%s\' is already set',
+                $id
+            ), E_USER_ERROR);
+        }
     }
 
     public function offsetExists($property)
@@ -50,11 +78,18 @@ class Factory implements \ArrayAccess
             or $this->isMagicProperty($property);
     }
 
-    public function offsetGet($property)
+    public function &offsetGet($property)
     {
-        return isset($this->__property[$property])
-            ? $this->__property[$property]
-            : $this->getMagicProperty($property);
+        if (isset($this->__property[$property])
+            or 0 === strpos($property, '$')
+        ) {
+            $out = &$this->__property[$property];
+
+        } else {
+            $out = $this->getMagicProperty($property);
+        }
+
+        return $out;
     }
 
     public function offsetSet($property, $value)
@@ -69,28 +104,25 @@ class Factory implements \ArrayAccess
 
     public function release()
     {
-        unset(self::$root[$this->root_id]);
+        unset(self::$root[$this->id[0]]);
     }
 
-    public static function __callStatic($name, $arguments)
+    public static function __callStatic($id, $parameter)
     {
-        if (!isset(self::$root[$name])) {
-            self::$root[$name] = (new \ReflectionClass(get_called_class()))
-                ->newInstanceWithoutConstructor();
-            self::$root[$name]->root_id = $name;
+        if (!isset(self::$root[$id])) {
+            new static(
+                isset($parameter[0]) ? $parameter[0] : [],
+                $id
+            );
 
-            if (isset($arguments[0])) {
-                self::$root[$name]->__construct($arguments[0]);
-            }
-
-        } elseif (isset($arguments[0])) {
+        } elseif (isset($parameter[0])) {
             trigger_error(sprintf(
                 'Factory \'%s\' is already set',
-                $name
+                $id
             ), E_USER_WARNING);
         }
 
-        return self::$root[$name];
+        return self::$root[$id];
     }
 
     protected function getOperator($value)
@@ -104,14 +136,17 @@ class Factory implements \ArrayAccess
         return false;
     }
 
-    protected function resolve($value)
+    protected function resolve($value, $id = false)
     {
         while ($operator = $this->getOperator($value)) {
             $value =
                 '$' === $operator
-                ? $value[$operator]()
+                ? $value[$operator](array_merge(
+                    array_slice($this->id, 1),
+                    $id ? (array)$id : []
+                ))
                 : $this->{'__operator_' . substr($operator, 1)}
-                    ($value[$operator]);
+                    ($value[$operator], $id);
         }
 
         return $value;
@@ -119,14 +154,16 @@ class Factory implements \ArrayAccess
 
     protected function isMagicProperty($property)
     {
-        return isset($this->__property['$unresolved'][$property])
+        return $this->auto
+            or isset($this->__property['$unresolved'][$property])
             or $this->isMagicPropertyCallback($property);
     }
 
-    protected function getMagicProperty($property)
+    protected function &getMagicProperty($property)
     {
         if (isset($this->__property['$unresolved'][$property])) {
-            $value = $this->__property['$unresolved'][$property];
+            $this->__property[$property] =
+                $this->__property['$unresolved'][$property];
 
             if (1 === count($this->__property['$unresolved'])) {
                 unset($this->__property['$unresolved']);
@@ -134,17 +171,39 @@ class Factory implements \ArrayAccess
             } else {
                 unset($this->__property['$unresolved'][$property]);
             }
-        } else {
+
+            $value = &$this->__property[$property];
+
+        } elseif (!$this->auto or $this->isMagicPropertyCallback($property)) {
             $value = $this->getMagicPropertyCallback($property);
+
+        } else {
+            $this->__property[$property] = ['$new' =>
+                is_array($this->auto)
+                ? $auto
+                : (
+                    is_string($this->auto)
+                    ? ['class' => $this->auto]
+                    : []
+                )
+            ];
+
+            $value = &$this->__property[$property];
         }
 
-        return $this->__property[$property] = $this->resolve($value);
+        $value = $this->resolve($value, $property);
+
+        return $value;
     }
 
-    protected function __operator_reuse($value)
+    protected function __operator_reuse($value, $id = false)
     {
-        if (isset(self::$root[$this->root_id])) {
-            $out = self::$root[$this->root_id];
+        $value = 0 === strpos($value, '.')
+            ? substr($value, 1)
+            : ($this->local_reuse ? $this->local_reuse . '.' : '') . $value;
+
+        if (isset(self::$root[$this->id[0]])) {
+            $out = self::$root[$this->id[0]];
 
             foreach (explode('.', $value) as $property) {
                 $out = $out->$property;
@@ -168,7 +227,7 @@ class Factory implements \ArrayAccess
         return $this;
     }
 
-    protected function __operator_new($state)
+    protected function __operator_new($state, $id = false)
     {
         $class = new \ReflectionClass(
             isset($state['class'])
@@ -184,19 +243,36 @@ class Factory implements \ArrayAccess
 
         unset($state['class']);
 
+        foreach ((array)$this->propagate as $property) {
+            if (!isset($state[$property])) {
+                $state[$property] = $this->$property;
+            }
+        }
+
         if ($class->instance instanceof self) {
-            $class->instance->root_id = $this->root_id;
-            $class->instance->__construct(array_merge([
-                'namespace' => $this->namespace,
-            ], $state));
+            foreach ([
+                'namespace',
+                'propagate',
+                'local_reuse',
+                'auto',
+            ] as $property) {
+                if (!isset($state[$property]) and !is_null($this->$property)) {
+                    $state[$property] = $this->$property;
+                }
+            }
+
+            $class->instance->__construct($state, array_merge(
+                $this->id,
+                $id ? (array)$id : []
+            ));
 
         } else {
             if (isset($state['construct'])) {
                 if ($class->constructor = $class->getConstructor()) {
-                    $class->constructor->arguments = [];
+                    $class->constructor->parameter = [];
 
                     foreach ((array)$state['construct'] as $value) {
-                        $class->constructor->arguments[] =
+                        $class->constructor->parameter[] =
                             $this->resolve($value);
                     }
                 }
@@ -212,7 +288,7 @@ class Factory implements \ArrayAccess
                     $is_unresolved = (bool)$this->getOperator($value);
 
                     if (!$is_injectable and $is_unresolved) {
-                        $value = $this->resolve($value);
+                        $value = $this->resolve($value, $property);
                     }
 
                     if ($class->hasProperty($property)) {
@@ -237,9 +313,14 @@ class Factory implements \ArrayAccess
                     $this->setClassInstanceProperty(
                         $class,
                         '__property',
-                        $this->{__FUNCTION__}(array_merge(
-                            ['namespace' => $this->namespace], $state
+                        new self($state, array_merge(
+                            $this->id,
+                            $id ? (array)$id : []
                         ))
+                        #$this->{__FUNCTION__}(array_merge(
+                        #    ['propagate' => false],
+                        #    $state
+                        #), $id)
                     );
 
                     foreach ($intersect as $property => $ignored) {
@@ -251,7 +332,7 @@ class Factory implements \ArrayAccess
             if (isset($class->constructor)) {
                 $class->constructor->invokeArgs(
                     $class->instance,
-                    $class->constructor->arguments
+                    $class->constructor->parameter
                 );
             }
         }

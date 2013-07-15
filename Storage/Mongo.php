@@ -192,11 +192,20 @@ class Mongo extends \NoFramework\Storage
 	public function update($parameter) {
 		extract($parameter);
 
-		return $this->connect()->selectCollection($collection)->update($this->where($where), (isset($is_replace) and $is_replace) ? $set : ['$set' => $set], [
-            'w' => (int)$this->is_safe,
-            'upsert' => isset($upsert) ? (bool)$upsert : false,
-            'multiple' => !isset($is_replace) or !$is_replace
-        ]);
+		return $this->connect()->selectCollection($collection)->update(
+            $this->where($where),
+            (isset($is_replace) and $is_replace)
+                ? $set
+                : array_merge(
+                    ['$set' => $set],
+                    (isset($on_insert) and $on_insert) ? ['$setOnInsert' => $on_insert] : []
+                ),
+            [
+                'w' => (int)$this->is_safe,
+                'upsert' => isset($upsert) ? (bool)$upsert : false,
+                'multiple' => !isset($is_replace) or !$is_replace
+            ]
+        );
 	}
 
 	public function remove($parameter) {

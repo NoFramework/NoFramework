@@ -119,12 +119,12 @@ class Request extends Url
             : 'Unknown bot';
     }
 
-    public function __call($property, $arguments) {
+    public function __call($property, $parameter) {
         if ( in_array($property, ['query', 'post', 'cookie', 'files']) ) {
             $out = $this->$property;
 
-            if ( isset($out[$arguments[0]]) )
-                $out = $out[$arguments[0]];
+            if ( isset($out[$parameter[0]]) )
+                $out = $out[$parameter[0]];
             else
                 $out = null;
 
