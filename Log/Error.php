@@ -11,10 +11,10 @@ namespace NoFramework\Log;
 
 class Error extends \NoFramework\Log
 {
-    protected /*int*/ $message_type = 0;
-    protected /*string*/ $destination;
-    protected /*string*/ $extra_headers;
-    protected /*boolean*/ $is_output_date = true;
+    protected $message_type = 0;
+    protected $destination;
+    protected $extra_headers;
+    protected $is_output_date = true;
 
     protected function onWrite($message, $type)
     {

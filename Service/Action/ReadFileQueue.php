@@ -19,22 +19,26 @@ abstract class ReadFileQueue extends \NoFramework\Service\Action
 
     public function run()
     {
-        return $this->file_queue->walkExclusive(function ($filename, $count, $total) {
-            if (!$this->is_only_last or $count === $total) {
-                $this->processFile($filename);
-            }
+        return $this->file_queue->walkExclusive(
+            function ($filename, $count, $total) {
+                if (!$this->is_only_last or $count === $total) {
+                    $this->processFile($filename);
+                }
 
-            if ($this->move_file_queue) {
-                if ('unlink' === $this->move_file_queue) {
-                    unlink($filename);
+                if ($this->move_file_queue) {
+                    if ('unlink' === $this->move_file_queue) {
+                        unlink($filename);
 
-                } else {
-                    $this->move_file_queue->withLockedFile(function ($log_filename) use ($filename) {
-                        rename($filename, $log_filename);
-                    });
+                    } else {
+                        $this->move_file_queue->withLockedFile(
+                            function ($move_filename) use ($filename) {
+                                rename($filename, $move_filename);
+                            }
+                        );
+                    }
                 }
             }
-        });
+        );
     }
 }
 

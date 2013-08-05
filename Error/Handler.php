@@ -60,9 +60,7 @@ class Handler
 
     public static function restoreBuiltin()
     {
-        return set_error_handler(function() {
-            return false;
-        });
+        return set_error_handler(null);
     }
 }
 

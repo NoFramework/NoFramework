@@ -13,9 +13,8 @@ abstract class Exception extends \Exception
 {
     protected $context;
 
-    public function __construct(
-        $errno, $errstr, $errfile, $errline, $errcontext,
-        \Exception $previous = null)
+    public function __construct($errno, $errstr, $errfile, $errline,
+        $errcontext, \Exception $previous = null)
     {
         parent::__construct($errstr, $errno, $previous);
         $this->file = $errfile;

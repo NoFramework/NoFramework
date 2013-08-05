@@ -43,11 +43,13 @@ class Smarty extends \NoFramework\Render
     {
         $this->smarty->clearAllAssign();
 
-        if ( $this->data ) {
+        if ($this->data) {
             $this->smarty->assign(is_array($data) ? $data : compact('data'));
         }
 
-        return $this->smarty->Fetch($this->template . ($this->extension ? '.' . $this->extension : ''));
+        return $this->smarty->Fetch(
+            $this->template . ($this->extension ? '.' . $this->extension : '')
+        );
     }
 }
 

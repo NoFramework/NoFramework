@@ -11,17 +11,17 @@ namespace NoFramework\Http;
 
 class Session implements \ArrayAccess
 {
-    protected /*string*/ $id;
+    protected $id;
 
     public function start()
     {
-        if ( $this->id ) {
+        if ($this->id) {
             session_id($this->id);
         }
 
         session_start();
 
-        if ( ! $this->id ) {
+        if (!$this->id) {
             $this->id = session_id();
         }
 
@@ -43,8 +43,8 @@ class Session implements \ArrayAccess
     }
 
     public function &offsetGet($offset) {
-        $out = &$_SESSION[$offset];
-        return $out;
+        $return = &$_SESSION[$offset];
+        return $return;
     }
 
     public function writeClose() {

@@ -16,6 +16,8 @@ class Factory implements \ArrayAccess
         getMagicProperty as getMagicPropertyCallback;
     }
 
+    use With;
+
     protected $namespace;
     protected $propagate;
     protected $local_reuse;
@@ -26,8 +28,6 @@ class Factory implements \ArrayAccess
 
     public function __construct($state = null, $id = null)
     {
-        $state = (array)$state;
-
         foreach ((array)$state as $property => $value) {
             if ('id' === $property) {
                 trigger_error('Cannot set id', E_USER_WARNING);
@@ -43,7 +43,7 @@ class Factory implements \ArrayAccess
         }
 
         if ($state) {
-            $this->__property['$unresolved'] = $state;
+            $this['$unresolved'] = $state;
         }
 
         $this->id = $id ? (array)$id : [spl_object_hash($this)];
@@ -53,23 +53,23 @@ class Factory implements \ArrayAccess
         }
     }
 
-    public function newInstance($state, $id = false)
+    public function newInstance($state = null, $id = null)
     {
-        if (!$id or !isset($this->$id)) {
-            $object = $this->__operator_new(
-                is_string($state) ? ['class' => $state] : $state,
-                $id
-            );
+        if (!$id) {
+            $object = $this->__operator_new($state);
 
-            if ($id) {
-                $this->$id = $object;
-            }
+        } elseif (!isset($this->$id)) {
+            $this['$unresolved'][$id] = ['$new' => $state];
+            $object = $this->$id;
+
         } else {
             trigger_error(sprintf(
                 'Property \'%s\' is already set',
                 $id
             ), E_USER_ERROR);
         }
+
+        return $object;
     }
 
     public function offsetExists($property)
@@ -80,16 +80,14 @@ class Factory implements \ArrayAccess
 
     public function &offsetGet($property)
     {
-        if (isset($this->__property[$property])
-            or 0 === strpos($property, '$')
-        ) {
-            $out = &$this->__property[$property];
+        if (isset($this->__property[$property]) or '$' === $property[0]) {
+            $return = &$this->__property[$property];
 
         } else {
-            $out = $this->getMagicProperty($property);
+            $return = $this->getMagicProperty($property);
         }
 
-        return $out;
+        return $return;
     }
 
     public function offsetSet($property, $value)
@@ -110,10 +108,7 @@ class Factory implements \ArrayAccess
     public static function __callStatic($id, $parameter)
     {
         if (!isset(self::$root[$id])) {
-            new static(
-                isset($parameter[0]) ? $parameter[0] : [],
-                $id
-            );
+            new static(isset($parameter[0]) ? $parameter[0] : [], $id);
 
         } elseif (isset($parameter[0])) {
             trigger_error(sprintf(
@@ -155,21 +150,20 @@ class Factory implements \ArrayAccess
     protected function isMagicProperty($property)
     {
         return $this->auto
-            or isset($this->__property['$unresolved'][$property])
+            or isset($this['$unresolved'][$property])
             or $this->isMagicPropertyCallback($property);
     }
 
     protected function &getMagicProperty($property)
     {
-        if (isset($this->__property['$unresolved'][$property])) {
-            $this->__property[$property] =
-                $this->__property['$unresolved'][$property];
+        if (isset($this['$unresolved'][$property])) {
+            $this->__property[$property] = $this['$unresolved'][$property];
 
-            if (1 === count($this->__property['$unresolved'])) {
-                unset($this->__property['$unresolved']);
+            if (1 === count($this['$unresolved'])) {
+                unset($this['$unresolved']);
 
             } else {
-                unset($this->__property['$unresolved'][$property]);
+                unset($this['$unresolved'][$property]);
             }
 
             $value = &$this->__property[$property];
@@ -179,15 +173,8 @@ class Factory implements \ArrayAccess
 
         } else {
             $this->__property[$property] = ['$new' =>
-                is_array($this->auto)
-                ? $auto
-                : (
-                    is_string($this->auto)
-                    ? ['class' => $this->auto]
-                    : []
-                )
+                true === $this->auto ? [] : $this->auto
             ];
-
             $value = &$this->__property[$property];
         }
 
@@ -203,13 +190,13 @@ class Factory implements \ArrayAccess
             : ($this->local_reuse ? $this->local_reuse . '.' : '') . $value;
 
         if (isset(self::$root[$this->id[0]])) {
-            $out = self::$root[$this->id[0]];
+            $return = self::$root[$this->id[0]];
 
             foreach (explode('.', $value) as $property) {
-                $out = $out->$property;
+                $return = $return->$property;
             }
 
-            return $out;
+            return $return;
 
         } else {
             trigger_error(sprintf(
@@ -227,11 +214,15 @@ class Factory implements \ArrayAccess
         return $this;
     }
 
-    protected function __operator_new($state, $id = false)
+    protected function __operator_new($state = null, $id = null)
     {
+        $state = $state
+            ? is_string($state) ? ['class' => $state] : (array)$state
+            : [];
+
         $class = new \ReflectionClass(
             isset($state['class'])
-            ? (0 === strpos($state['class'], '\\')
+            ? ('\\' === $state['class'][0]
               ? substr($state['class'], 1)
               : ($this->namespace ? $this->namespace . '\\' : '')
                     . $state['class']
@@ -248,6 +239,8 @@ class Factory implements \ArrayAccess
                 $state[$property] = $this->$property;
             }
         }
+        
+        $id = $id ? array_merge($this->id, (array)$id) : null;
 
         if ($class->instance instanceof self) {
             foreach ([
@@ -261,10 +254,7 @@ class Factory implements \ArrayAccess
                 }
             }
 
-            $class->instance->__construct($state, array_merge(
-                $this->id,
-                $id ? (array)$id : []
-            ));
+            $class->instance->__construct($state, $id);
 
         } else {
             if (isset($state['construct'])) {
@@ -313,14 +303,10 @@ class Factory implements \ArrayAccess
                     $this->setClassInstanceProperty(
                         $class,
                         '__property',
-                        new self($state, array_merge(
-                            $this->id,
-                            $id ? (array)$id : []
-                        ))
-                        #$this->{__FUNCTION__}(array_merge(
-                        #    ['propagate' => false],
-                        #    $state
-                        #), $id)
+                        new self(array_merge([
+                            'namespace' => $this->namespace,
+                            'local_reuse' => $this->local_reuse
+                        ], $state), $id)
                     );
 
                     foreach ($intersect as $property => $ignored) {

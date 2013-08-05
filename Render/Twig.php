@@ -15,11 +15,20 @@ class Twig extends \NoFramework\Render
     public $extension = 'html';
     public $template_path;
     public $cache_path;
+    public $is_debug;
+    public $is_auto_reload;
+    public $is_strict_variables;
+    public $charset;
+    public $base_template_class;
+    public $autoescape;
+    public $optimizations;
 
     protected function __property_twig()
     {
-        $loader = new \Twig_Loader_Filesystem($this->template_path);
-        return new \Twig_Environment($loader, $this->configure());
+        return new \Twig_Environment(
+            new \Twig_Loader_Filesystem($this->template_path),
+            $this->configure()
+        );
     }
 
     protected function __property_loaded_template()
@@ -33,8 +42,19 @@ class Twig extends \NoFramework\Render
     {
         $config = [];
 
-        if ( $this->cache_path ) {
-            $config['cache'] = $this->cache_path;
+        foreach ([
+            'cache_path' => 'cache',
+            'is_debug' => 'debug',
+            'is_auto_reload' => 'auto_reload',
+            'is_strict_variables' => 'strict_variables',
+            'charset' => 'charset',
+            'base_template_class' => 'base_tempale_path',
+            'autoescape' => 'autoescape',
+            'optimizations' => 'optimizations',
+        ] as $property => $option) {
+            if (isset($this->$property)) {
+                $config[$option] = $this->$property
+            }
         }
 
         return $config;
@@ -43,12 +63,9 @@ class Twig extends \NoFramework\Render
     public function __invoke($data, $block = false)
     {
         $data = is_array($data) ? $data : compact('data');
-        $template = $this->loaded_template;
-
-        return
-            false === $block
-            ? $template->render($data)
-            : $template->renderBlock($block, $data);
+        return false === $block
+            ? $this->loaded_template->render($data)
+            : $this->loaded_template->renderBlock($block, $data);
     }
 }
 

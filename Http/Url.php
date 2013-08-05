@@ -14,60 +14,53 @@ class Url
 {
     use \NoFramework\MagicProperties;
 
-    protected /*string*/ function __property_base_url()
+    protected function __property_base_url()
     {
         $split = $this->splitUrl($this->url);
-
         return $split['base_url'];
     }
 
-    protected /*string*/ function __property_scheme()
+    protected function __property_scheme()
     {
         $split = $this->splitUrl($this->base_url);
-
         return $split['scheme'];
     }
 
-    protected /*string*/ function __property_host_port()
+    protected function __property_host_port()
     {
         $split = $this->splitUrl($this->base_url);
-
         return $split['host_port'];
     }
 
-    protected /*string*/ function __property_host()
+    protected function __property_host()
     {
         $split = $this->splitHostPort($this->host_port);
-
         return $split['host'];
     }
 
-    protected /*int*/ function __property_port()
+    protected function __property_port()
     {
         $split = $this->splitHostPort($this->host_port);
-
         return $split['port'];
     }
 
-    protected /*string*/ function __property_request_uri()
+    protected function __property_request_uri()
     {
         $split = $this->splitUrl($this->url);
-
         return $split['request_uri'];
     }
 
-    protected /*string*/ function __property_path_string()
+    protected function __property_path_string()
     {
         if (isset($this->path)) {
             return (string)$this->path;
         }
 
         $split = $this->splitRequestUri($this->request_uri);
-
         return $split['path_string'];
     }
 
-    protected /*NoFramework\File\Path*/ function __property_path()
+    protected function __property_path()
     {
         return new Path([
             'separator' => '/',
@@ -75,18 +68,17 @@ class Url
         ]);
     }
 
-    protected /*string*/ function __property_query_string()
+    protected function __property_query_string()
     {
         if (isset($this->query)) {
             return http_build_query($this->query);
         }
 
         $split = $this->splitRequestUri($this->request_uri);
-
         return $split['query_string'];
     }
 
-    protected /*array*/ function __property_query()
+    protected function __property_query()
     {
         $query = [];
 
@@ -109,13 +101,9 @@ class Url
         return $query;
     }
 
-    protected /*string*/ function __property_url()
+    protected function __property_url()
     {
-        return $this->joinBaseUrl(
-            $this->scheme,
-            $this->host,
-            $this->port
-        ) . 
+        return $this->joinBaseUrl($this->scheme, $this->host, $this->port) .
         $this->path_string .
         ($this->query_string ? '?' . $this->query_string : '');
     }

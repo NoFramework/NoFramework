@@ -11,8 +11,6 @@ namespace NoFramework\Http;
 
 abstract class Application extends \NoFramework\Application
 {
-    protected $controller;
-
     protected function __property_request()
     {
         return new Request;
@@ -40,18 +38,16 @@ abstract class Application extends \NoFramework\Application
         $view->data_properties = ['status'];
         $view->content_type = 'text/plain';
         $view->render = function ($data) {
-            extract($data);
-
             return sprintf(
                 '%1$s - %2$s' . PHP_EOL .
                 'method: %3$s' . PHP_EOL .
                 'url: %4$s' . PHP_EOL .
                 '%5$s',
-                $status,
-                $message,
-                $method,
-                $url,
-                $exception
+                $data['status'],
+                $data['message'],
+                $data['method'],
+                $data['url'],
+                $data['exception']
             );
         };
 
@@ -66,12 +62,14 @@ abstract class Application extends \NoFramework\Application
             'message' => $exception->getMessage(),
             'method' => $this->request->method,
             'url' => (string)$this->request,
-            'exception' => $this->display_errors ? $exception->getPrevious() : null
+            'exception' => $this->display_errors
+                ? $exception->getPrevious()
+                : null
         ];
 
         $parameters = $exception->getParameters();
 
-        if ( isset($parameters['headers']) ) {
+        if (isset($parameters['headers'])) {
             $this->error_view->headers = $parameters['headers'];
         }
 
@@ -80,35 +78,26 @@ abstract class Application extends \NoFramework\Application
         return $this;
     }
 
-    protected function redirect($location, $status)
-    {
-        $this->response->redirect($location, $status);
-        return $this;
-    }
-
     public function start($main = false)
     {
         $jobs = [];
 
-        try
-        {
+        try {
             $emit_jobs = function ($job) use (&$jobs) {
                 $jobs[] = $job;
             };
 
             $main ? $main($emit_jobs, $this) : $this->main($emit_jobs);
-        }
-        catch (Exception\Redirect $e)
-        {
-            $this->redirect($e->getLocation(), $e->getCode());
-        }
-        catch (Exception\ErrorStatus $e)
-        {
+
+        } catch (Exception\Redirect $e) {
+            $this->response->redirect($e->getLocation(), $e->getCode());
+
+        } catch (Exception\ErrorStatus $e) {
             $this->showError($e);
-        }
-        catch (\Exception $e)
-        {
+
+        } catch (\Exception $e) {
             $this->showError(new Exception\ErrorStatus(500, [], $e));
+
         }
 
         flush();

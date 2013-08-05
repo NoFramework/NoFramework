@@ -11,7 +11,7 @@ namespace NoFramework\Http;
 
 class Request extends Url
 {
-    protected /*string*/ function __property_method()
+    protected function __property_method()
     {
         return
             isset($_SERVER['REQUEST_METHOD'])
@@ -19,7 +19,7 @@ class Request extends Url
             : 'GET';
     }
 
-    protected /*string*/ function __property_scheme()
+    protected function __property_scheme()
     {
             if (isset($_SERVER['SERVER_PROTOCOL'])
             and false !== strpos(
@@ -36,7 +36,7 @@ class Request extends Url
             return 'http';
     }
 
-    protected /*string*/ function __property_host_port()
+    protected function __property_host_port()
     {
         if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
             return $_SERVER['HTTP_X_FORWARDED_HOST'];
@@ -76,8 +76,8 @@ class Request extends Url
         }
         
         if (isset($this->url)
-        or isset($this->request_uri)
-        or isset($this->query_string)
+            or isset($this->request_uri)
+            or isset($this->query_string)
         ) {
             return parent::__property_query();
         }
@@ -116,26 +116,21 @@ class Request extends Url
     protected function __property_user_agent() {
         return isset($_SERVER['HTTP_USER_AGENT'])
             ? $_SERVER['HTTP_USER_AGENT']
-            : 'Unknown bot';
+            : false;
     }
 
     public function __call($property, $parameter) {
-        if ( in_array($property, ['query', 'post', 'cookie', 'files']) ) {
-            $out = $this->$property;
-
-            if ( isset($out[$parameter[0]]) )
-                $out = $out[$parameter[0]];
-            else
-                $out = null;
-
-            return $out;
+        if (in_array($property, ['query', 'post', 'cookie', 'files'])) {
+            return isset($this->$property[$parameter[0]])
+                ? $this->$property[$parameter[0]]
+                : null;
+        } else {
+            trigger_error(
+                sprintf('Call to undefined method %s::%s.',
+                get_called_class(),
+                $property), 
+            E_USER_ERROR);
         }
-
-        trigger_error(
-            sprintf('Call to undefined method %s::%s.',
-            get_called_class(),
-            $property), 
-        E_USER_ERROR);
     }
 }
 

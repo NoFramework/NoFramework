@@ -25,38 +25,47 @@ class Response
 
     public function cookie($cookie)
     {
-        extract($cookie);
-
-        if ( ! isset($name) ) {
+        if (!isset($cookie['name'])) {
             throw new \InvalidArgumentException('Cookie name is not set');
         }
 
-        $value = isset($value) ? (string)$value : '';
-        $expire = isset($expire) ? (int)$expire : 0;
-        $path = isset($path) ? (string)$path : '';
-        $domain = isset($domain) ? (string)$domain : '';
-        $is_secure = isset($is_secure) ? (boolean)$is_secure : false;
-        $is_httponly = isset($is_httponly) ? (boolean)$is_httponly : false;
+        $get = function ($option, $default = '') use ($cookie) {
+            return isset($cookie[$option]) ? $cookie[$option] : $default;
+        }
 
-        setcookie($name, $value, $expire, $path, $domain, $is_secure, $is_httponly);
+        setcookie(
+            $cookie['name'],
+            $get('value'),
+            $get('expire', 0),
+            $get('path'),
+            $get('domain'),
+            $get('is_secure', false),
+            $get('is_httponly', false)
+        );
 
         return $this;
     }
 
     public function header($name, $value = null)
     {
-        if ( is_null($value) ) {
+        if (is_null($value)) {
             header_remove($name);
             return $this;
         }
 
         $is_replace = true;
-        foreach ( is_array($value) || $value instanceof Traversable ? $value : [$value] as $value_item ) {
-            header($name . ': ' . $value_item, $is_replace);
+
+        foreach ((array)$value as $value_item) {
+            header(sprintf('%s: %s', $name, $value_item), $is_replace);
             $is_replace = false;
         }
 
         return $this;
+    }
+
+    public function isHeadersSent()
+    {
+        return headers_sent();
     }
 
     public function payload($payload)

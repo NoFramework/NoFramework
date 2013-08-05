@@ -20,6 +20,7 @@ class Json extends \NoFramework\Render
     public $unescaped_slashes = false;
     public $force_object = false;
     public $unescaped_unicode = false;
+    public $depth = 512;
 
     protected function __property_options()
     {
@@ -66,7 +67,11 @@ class Json extends \NoFramework\Render
 
     public function __invoke($data = [])
     {
-        return json_encode(is_array($data) ? $data : compact('data'), $this->options);
+        return json_encode(
+            is_array($data) ? $data : compact('data'),
+            $this->options,
+            $this->depth
+        );
     }
 }
 

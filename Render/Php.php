@@ -15,15 +15,15 @@ class Php extends \NoFramework\Render
     public $template;
     public $extension = 'html';
     public $is_short_open_tag = true;
-    public $template_path;
+    public $template_path = '';
 
     protected function __property_path()
     {
         $path = new Path([
-            'dirname' => $this->template_path;
-            'filename' => $this->template;
-            'extension' => $this->extension;
-        ];
+            'dirname' => $this->template_path,
+            'filename' => $this->template,
+            'extension' => $this->extension,
+        ]);
 
         if (!is_file($path) ) {
             throw new \InvalidArgumentException(sprintf(
@@ -38,14 +38,13 @@ class Php extends \NoFramework\Render
 
     public function __invoke($data)
     {
-        if ( $this->is_short_open_tag && !ini_get('short_open_tag') ) {
+        if ($this->is_short_open_tag && !ini_get('short_open_tag')) {
             throw new \RuntimeException('short_open_tag=1 is required');
         }
 
-        if ( is_array($data) ) {
-            $this->data = $data;
+        if (is_array($data)) {
             unset($data);
-            extract($this->data);
+            extract(func_get_arg(0));
         }
 
         ob_start();

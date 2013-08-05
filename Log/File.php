@@ -13,9 +13,9 @@ class File extends \NoFramework\Log
 {
     use \NoFramework\MagicProperties;
 
-    public /*NoFramework\File\Path | string*/ $path;
+    public $path;
 
-    protected /*resource*/ function __property_handle()
+    protected function __property_handle()
     {
         return fopen($this->path, 'a');
     }

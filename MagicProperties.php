@@ -70,30 +70,26 @@ trait MagicProperties
 
     protected function &getMagicProperty($property)
     {
-        $cache = &$this->__property['$cache'][$property];
-
-        if (isset($cache) and $cache['expire'] > microtime(true)) {
-            $out = &$cache['value'];
+        if (isset($this->__property['$cache'][$property])
+        and $this->__property['$cache'][$property]['expire'] > microtime(true)
+        ) {
+            $return = &$this->__property['$cache'][$property]['value'];
 
         } else {
             $ttl = false;
-            unset($cache['value']);
-            unset($cache['expire']);
-
-            $out = $this->{'__property_' . $property}($ttl);
+            $return = $this->{'__property_' . $property}($ttl);
 
             if (false === $ttl) {
-                $this->__property[$property] = $out;
-                $out = &$this->__property[$property];
+                $this->__property[$property] = &$return;
 
-            } elseif (0 !== $ttl) {
-                $cache['value'] = $out;
-                $out = &$cache['value'];
-                $cache['expire'] = $ttl + microtime(true);
+            } else {
+                $this->__property['$cache'][$property]['value'] = &$return;
+                $this->__property['$cache'][$property]['expire']
+                     = $ttl + microtime(true);
             }
         }
 
-        return $out;
+        return $return;
     }
 }
 

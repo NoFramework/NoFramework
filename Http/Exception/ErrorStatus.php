@@ -40,18 +40,14 @@ class ErrorStatus extends \RuntimeException
 
     protected $parameters;
 
-    public function __construct($code, $parameters = [], \Exception $previous = null)
+    public function __construct($code, $parameters = [],
+        \Exception $previous = null)
     {
         $this->parameters = $parameters;
 
-        parent::__construct(
-            isset($parameters['message'])
+        parent::__construct(isset($parameters['message'])
             ? $parameters['message']
-            : (
-                isset($this->messages[$code])
-                ? $this->messages[$code]
-                : ''
-            )
+            : (isset($this->messages[$code]) ? $this->messages[$code] : '')
         , $code, $previous);
     }
 

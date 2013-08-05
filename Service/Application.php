@@ -37,10 +37,17 @@ class Application extends \NoFramework\Application
     public function start($main = false)
     {
         if ($this->pidfile) {
-            if (!$this->pidfile->check($this->timeout)) {
-                $this->pidfile->write();
+            $pidfile = $this->pidfile;
+
+            if (is_string($pidfile)) {
+                $pidfile = new PidFile;
+                $pidfile->path = $this->pidfile;
+            }
+
+            if (!$pidfile->check($this->timeout)) {
+                $pidfile->write();
                 $result = parent::start($main);
-                $this->pidfile->delete();
+                $pidfile->delete();
                 return $result;
             }
         } else {

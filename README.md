@@ -1,6 +1,6 @@
 NoFramework
 ===========
-(PHP 5 >= 5.4)
+(PHP 5 >= 5.5)
 
 NoFramework. No problem.
 
@@ -8,20 +8,57 @@ NoFramework. No problem.
 - PSR-0 file autoloading
 - dependency injection
 - totally avoid globals and defines
+- no $this recursion (clear print_r)
 - lazy object creation
 - magic memoization
 - immutable objects
 - hierarchical configuration
+- can be used inside or/and in parallel whith any legacy code or framework
+
 
 How to use
 ===========
 
-Minimal:
+
+Real life (require pecl yaml):
+```php
+<?php
+require '/path/to/NoFramework/Config.php';
+NoFramework\Config::front()->application->start();
+```
+The code above searches '.config/NoFramework/front.yaml' up from
+dirname(realpath($_SERVER['SCRIPT_FILENAME']))
+and starts configured application.
+
+
+The same, hiding static:
+```php
+<?php
+require '/path/to/NoFramework/Config.php';
+(new NoFramework\Config)->withFile('front.yaml', function ($state) {
+    (new NoFramework\Factory($state))->application->start();
+});
+```
+
+
+Configure for use inside legacy code.
+Put somewhere in the beginning:
+```php
+require '/path/to/NoFramework/Config.php';
+NoFramework\Config::main();
+```
+Use as singleton anywhere inside legacy code:
+```php
+\NoFramework\Factory::main()->object1->object2->...->someMethod();
+```
+
+
+Minimal without yaml:
 ```php
 <?php
 namespace NoFramework;
 
-require __DIR__ . '/path/to/NoFramework/Autoload.php';
+require '/path/to/NoFramework/Autoload.php';
 
 (new Autoload)->register();
 
@@ -29,21 +66,52 @@ require __DIR__ . '/path/to/NoFramework/Autoload.php';
     'namespace' => __NAMESPACE__,
     'app' => ['$new' => [
         'class' => 'Application',
-        'log' => ['$new' => [
-            'class' => 'Log\Output'
-        ]]
+        'log' => ['$new' => 'Log\Output']
     ]]
 ]))->app->start(function ($app) {
     $app->log->write('ok');
 });
 ```
 
-Extended with yaml config (require pecl yaml):
+
+Dynamic injection and reuse:
 ```php
 <?php
-require __DIR__ . '/path/to/NoFramework/Config.php';
+namespace NoFramework;
+
+require '/path/to/NoFramework/Autoload.php';
+
+(new Autoload)->register();
+
+(new Factory([
+    'namespace' => __NAMESPACE__,
+    'auto' => true,
+    'log' => ['$new' => [
+        'output' => ['$new' => 'Log\Output']
+    ]]
+]))->with(function ($root) {
+    # try this
+    #$root->log->newInstance('Log\Nil', 'output');
+
+    $root->newInstance([
+        'class' => 'Application',
+        'log' => ['$reuse' => 'log.output'],
+        'magic_factory' => ['$reuse' => 'name1.name2.name3']
+    ], 'app')->start(function ($app) {
+        $app->log->write(print_r($app, true));
+        $app->log->write(print_r($app->magic_factory, true));
+    });
+});
+```
+
+
+Tried to show some cases (require pecl yaml):
+```php
+<?php
+require '/path/to/NoFramework/Config.php';
 NoFramework\Config::random_name(__FILE__, __COMPILER_HALT_OFFSET__);
 
+// Any class is a module for NoFramework
 class Standard
 {
     protected $magic;
@@ -62,6 +130,28 @@ class Magic
     {
         return sprintf('I am default, but calculated: %d', mt_rand(0, 100));
     }
+
+    protected function __property_rand(&$ttl)
+    {
+        $ttl = 1; // seconds, float or int
+        return mt_rand(0, 100);
+    }
+
+    # 5.5
+    #protected function __property_emitter()
+    #{
+    #    while (true) {
+    #        yield mt_rand(0, 100);
+    #    }
+    #}
+
+    # 5.5
+    #protected function __property_acceptor()
+    #{
+    #    foreach (yield as $rand) {
+    #        echo $rand . PHP_EOL;
+    #    }
+    #}
 }
 
 class Application extends \NoFramework\Application
@@ -93,6 +183,15 @@ class Application extends \NoFramework\Application
 
         $this->log->file
         -> write($this->injected_object->getMagic()->memo);
+
+        while (true) {
+            $this->log->output
+            -> write($this->injected_object->getMagic()->rand);
+        }
+
+        # 5.5
+        #$m = $this->injected_object->getMagic();
+        #$m->acceptor->send($m->emitter);
     }
 }
 
@@ -122,7 +221,7 @@ application: !new
       path: !script_path test.log
   autoload: !reuse autoload
   period: !period 1y 2m 3d t 4h 5m 6s
-  lazy_config_path: !script_path test_lazy.yaml
+  lazy_config_path: !config_path test_lazy.yaml
   lazy_read: !read test_lazy.yaml
   injected_object: !new
     class: \Standard

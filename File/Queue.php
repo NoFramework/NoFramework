@@ -55,12 +55,15 @@ class Queue
 
     public function getFilenameById($id) 
     {
-        return $this->getPathById($id) . DIRECTORY_SEPARATOR. $this->normalizeId($id);
+        return $this->getPathById($id) . DIRECTORY_SEPARATOR .
+            $this->normalizeId($id);
     }
 
     public function getIdByFilename($filename)
     {
-        return is_file($filename) ? intval(pathinfo($filename, PATHINFO_BASENAME)) : 0;
+        return is_file($filename)
+            ? intval(pathinfo($filename, PATHINFO_BASENAME))
+            : 0;
     }
 
     public function getLastId()
@@ -73,23 +76,26 @@ class Queue
     {
         $is_chmod = false;
 
-        if ( false === $filename ) {
+        if (false === $filename) {
             $filename = $this->getFilenameById($this->getLastId() + 1);
             $handle = fopen($filename, 'w');
             $is_chmod = true;
 
         } else {
-            if ( ! is_file($filename) ) {
-                throw new \RuntimeException(sprintf('No such file %s', $filename));
+            if (!is_file($filename)) {
+                throw new \RuntimeException(sprintf(
+                    'No such file %s',
+                    $filename
+                ));
             }
             $handle = fopen($filename, 'r');
         }
 
         $is_processed = false;
 
-        if ( flock($handle, LOCK_EX | LOCK_NB) ) {
+        if (flock($handle, LOCK_EX | LOCK_NB)) {
             $closure($filename);
-            if ( $is_chmod && is_file($filename) ) {
+            if ($is_chmod and is_file($filename)) {
                 chmod($filename, $this->chmod_file);
             }
             flock($handle, LOCK_UN);
@@ -127,12 +133,13 @@ class Queue
 
     public function walkExclusive($closure, $lock_filename = 'walk.lck')
     {
-        $lock_filename = $this->ensurePath($this->path) . DIRECTORY_SEPARATOR . $lock_filename;
+        $lock_filename = $this->ensurePath($this->path) .
+            DIRECTORY_SEPARATOR . $lock_filename;
         $count = 0;
         $handle = fopen($lock_filename, 'w');
         chmod($lock_filename, $this->chmod_file);
 
-        if ( flock($handle, LOCK_EX | LOCK_NB) ) {
+        if (flock($handle, LOCK_EX | LOCK_NB)) {
             $count = $this->walk($closure);
             flock($handle, LOCK_UN);
         }

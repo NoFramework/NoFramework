@@ -3,7 +3,6 @@
  * NoFramework
  *
  * @author Roman Zaykin <roman@noframework.com>
- * @author Paul Andryushin <job.pablo@yandex.ru>
  * @license http://www.opensource.org/licenses/mit-license.php MIT
  * @link http://noframework.com
  */
@@ -12,247 +11,438 @@ namespace NoFramework\Storage;
 
 class Mongo extends \NoFramework\Storage
 {
-	protected $user;
-	protected $password;
-	protected $host;
-	protected $port;
-	protected $database;
-	protected $is_safe = true;
-	protected $is_slave_ok = false;
+    use \NoFramework\MagicProperties;
 
-	public function connect() {
-		$out = new \MongoClient('mongodb://'.
-            ($this->user?$this->user.($this->password?':'.$this->password:'').'@':'').
-            ($this->host?:'localhost').
-            ($this->port?':'.$this->port:'').'/'.$this->database);
+    protected $username = false;
+    protected $password = false;
+    protected $host = \MongoClient::DEFAULT_HOST;
+    protected $database = 'test';
+    protected $read_preference = \MongoClient::RP_PRIMARY_PREFERRED;
+    protected $read_preference_tags = [];
+    protected $write_concern = 1;
+    protected $options = [];
 
-        \MongoCursor::$slaveOkay = $this->is_slave_ok;
-
-		return $out->selectDB($this->database);
-    }
-
-    public function insert($parameter) {
-		extract($parameter);
-		$result = $this->connect()->selectCollection($collection)->insert($set, [
-            'w' => (int)$this->is_safe
-        ]);
-        return $set['_id'];
-	}
-
-    protected function where(&$where)
+    protected function __property_connection()
     {
-        if ( ! isset($where) or ! $where ) {
-            return [];
+        $auth = [];
+
+        if (false !== $this->username) {
+            $auth['username'] = $this->username;
         }
 
-        $out = [];
-
-        foreach ( $where as $field => $value ) {
-            if ( is_array($value) ) {
-                foreach ( $value as $collation => $collation_value ) {
-                    if ( '=' === $collation ) {
-                        $value = $collation_value;
-                        break;
-
-                    } elseif ( '<' === $collation ) {
-                        unset($value[$collation]);
-                        $value['$lt'] = $collation_value;
-
-                    } elseif ( '>' === $collation ) {
-                        unset($value[$collation]);
-                        $value['$gt'] = $collation_value;
-
-                    } elseif ( '<=' === $collation ) {
-                        unset($value[$collation]);
-                        $value['$lte'] = $collation_value;
-
-                    } elseif ( '>=' === $collation ) {
-                        unset($value[$collation]);
-                        $value['$gte'] = $collation_value;
-
-                    } elseif ( '<>' === $collation ) {
-                        unset($value[$collation]);
-                        $value['$ne'] = $collation_value;
-                    }
-                }
-            }
-            $out[$field] = $value;
+        if (false !== $this->password) {
+            $auth['password'] = $this->password;
         }
 
-        return $out;
-    }
-
-    protected function flatternFields($object, $fields)
-    {
-        $new_object = [];
-
-        foreach ( $fields as $field ) {
-            if ( false !== strpos($field, '.') ) {
-                $value = &$object;
-                $new_field = [];
-
-                foreach ( explode('.', $field) as $field_part ) {
-                    if (!isset($value[$field_part])) {
-                        break;
-                    }
-
-                    $value = &$value[$field_part];
-                    $new_field[] = $field_part;
-                }
-
-                $new_object[implode('.', $new_field)] = $value;
-
-            } else {
-                $new_object[$field] = isset($object[$field]) ? $object[$field] : null; 
-            }
-        }
-
-        return $new_object;
-    }
-
-	public function group($parameter) {
-		extract($parameter);
-
-        if( !isset($keys) || empty($keys) || !isset($initial) || empty($initial) || !isset($reduce) || empty($reduce) )
-            throw new \InvalidArgumentException('Bad parametrs form group function'); 
-
-        $options = [];
-
-        if (isset($condition)) {
-            $options['condition'] = $condition;
-        }
-
-        if (isset($finalize)) {
-            $options['finalize'] = $finalize;
-        }
-
-        if ($options) {
-            $out = $this->connect()->selectCollection($collection)->group($keys, $initial, $reduce, $options);
-        } else {
-            $out = $this->connect()->selectCollection($collection)->group($keys, $initial, $reduce);
-        }
-
-		return $out;
-	}
-
-	public function _find($parameter) {
-		extract($parameter);
-		$out = $this->connect()->selectCollection($collection)->find($this->where($where), isset($fields)?$fields:[]);
-		if (isset($sort) and $sort) $out = $out->sort($sort);
-		if (isset($skip) and $skip) $out = $out->skip($skip);
-		if (isset($limit) and $limit) $out = $out->limit($limit);
-        if (isset($timeout)) $out = $out->timeout($timeout);
-        if (isset($immortal)) $out = $out->immortal($immortal);
-		return $out;
-	}
-
-	public function find($parameter) {
-        $out = $this->_find($parameter);
-
-        if ( isset($parameter['fields']) ) {
-            $flattern = [];
-
-            foreach( $out as $key => $row ) {
-                $flattern[] = $this->flatternFields($row, $parameter['fields']);
-            }
-
-            return $flattern;
-        }
-
-		return $out;
-	}
-
-	public function walk($parameter, $closure) {
-		foreach( $this->_find($parameter) as $row ) {
-            if ( isset($parameter['fields']) ) {
-                $closure($this->flatternFields($row, $parameter['fields']));
-            } else {
-                $closure($row);
-            }
-        }
-
-		return $this;
-	}
-
-	public function findOne($parameter) {
-		extract($parameter);
-        $fields = isset($fields) ? $fields : [];
-		$result =  $this->connect()->selectCollection($collection)->findOne($this->where($where), $fields);
-
-        if ( ! $result ) {
-            return false;
-        }
-
-        if ( $fields ) {
-            $result = $this->flatternFields($result, $fields);
-        }
-        return 1 === count($fields) ? (isset($result[$fields[0]]) ? $result[$fields[0]] : false) : $result;
-	}
-
-	public function update($parameter) {
-		extract($parameter);
-
-		return $this->connect()->selectCollection($collection)->update(
-            $this->where($where),
-            (isset($is_replace) and $is_replace)
-                ? $set
-                : array_merge(
-                    ['$set' => $set],
-                    (isset($on_insert) and $on_insert) ? ['$setOnInsert' => $on_insert] : []
-                ),
-            [
-                'w' => (int)$this->is_safe,
-                'upsert' => isset($upsert) ? (bool)$upsert : false,
-                'multiple' => !isset($is_replace) or !$is_replace
-            ]
+        return new \MongoClient(
+            'mongodb://' . implode(',', (array)$this->host),
+            array_merge([
+                'connect' => true,
+                'db' => $this->database,
+                'readPreference' => $this->read_preference,
+                'readPreferenceTags' => $this->read_preference_tags,
+                'w' => $this->write_concern,
+            ], $auth, $this->options)
         );
-	}
+    }
 
-	public function remove($parameter) {
-		extract($parameter);
-        if (isset($fields) and $fields) {
-            return $this->connect()->selectCollection($collection)->update($this->where($where), ['$unset' => array_fill_keys((array)$fields, true)], [
-                'w' => (int)$this->is_safe,
-                'upsert' => false,
-                'multiple' => true
-            ]);
-        } else {
-            return $this->connect()->selectCollection($collection)->remove($this->where($where), [
-                'w' => (int)$this->is_safe,
-                'justOne' => isset($justOne) ? (bool)$justOne : false
-            ]);
+    protected function __property_db()
+    {
+        return $this->connection->selectDB($this->database);
+    }
+
+    protected function __named_find($collection, $where = [], $fields = [],
+        $sort = [], $skip = 0, $limit = 0, $options = [])
+    {
+        $option = function ($option) use ($options) {
+            return isset($options[$option]) ? $options[$option] : null;
+        };
+
+        $cursor = $this->db->selectCollection($collection)->find(
+            $this->normalizeWhere($where),
+            $fields
+        );
+
+        if ($sort) {
+            $cursor->sort($sort);
         }
-	}
 
-	public function count($parameter) {
-		extract($parameter);
-		return $this->connect()->selectCollection($collection)->count($this->where($where));
-	}
+        if ($skip) {
+            $cursor->skip($skip);
+        }
 
-	public function listCollections() {
-		$out = [];
-		$connecttion = $this->connect();
-        foreach ($connection->listCollections() as $collection) $out[] =  $collection->getName();
-		return $out;
-	}
+        if ($limit) {
+            $cursor->limit($limit);
+        }
 
-    public function fromUnixTimestamp($timestamp) {
+        if ($index = $option('index')) {
+            $cursor->hint($index);
+        }
+
+        if ($option('is_tailable')) {
+            $cursor->tailable();
+        }
+
+        if ($option('is_immortal')) {
+            $cursor->immortal();
+        }
+
+        if ($option('is_await_data')) {
+            $cursor->awaitData();
+        }
+
+        if ($option('is_partial')) {
+            $cursor->partial();
+        }
+
+        #if ($option('is_exhaust')) {
+        #    @$cursor->setFlag(6);
+        #}
+
+        if ($option('is_snapshot')) {
+            $cursor->snapshot();
+        }
+
+        if ($timeout = $option('timeout')) {
+            $cursor->timeout($timeout);
+        }
+
+        if ($batch_size = $option('batch_size')) {
+            $cursor->batchSize($batch_size);
+        }
+
+        $read_preference = $option('read_preference');
+        $read_preference_tags = $option('read_preference_tags');
+
+        if ($read_preference or $read_preference_tags) {
+            $cursor->setReadPreference(
+                $read_preference ?: $this->read_preference,
+                $read_preference_tags ?: $this->read_preference_tags
+            );
+        }
+
+        return $cursor;
+    }
+
+    protected function __named_count($collection, $where = [], $options = [])
+    {
+        $option = function ($option) use ($options) {
+            return isset($options[$option]) ? $options[$option] : null;
+        };
+
+        $return = $this->db->selectCollection($collection)->count(
+            $this->normalizeWhere($where),
+            $option('limit'),
+            $option('skip')
+        );
+
+        return $return;
+    }
+
+    protected function __named_insert($collection, $set, $options = [])
+    {
+		$return = $this->db->selectCollection($collection)->insert(
+            $set,
+            array_merge([
+                'w' => $this->write_concern,
+            ], $options)
+        );
+
+        $return['updatedExisting'] = false;
+        $return['n'] = 1;
+
+        if (isset($set['_id'])) {
+            $return['upserted'] = $set['_id'];
+        }
+
+        return $return;
+    }
+
+    protected function __named_update($collection, $set, $where = [],
+        $options = [])
+    {
+        $option = function ($option) use ($options) {
+            return isset($options[$option]) ? $options[$option] : null;
+        };
+
+        $is_replace = true;
+
+        foreach ($set as $operation => $ignored) {
+            if (0 === strpos($operation, '$')) {
+                $is_replace = false;
+                break;
+            }
+        }
+
+        if ($is_replace and !$option('is_replace')) {
+            $set = ['$set' => $set];
+            $is_replace = false;
+        }
+
+        unset($options['is_replace']);
+
+        return $this->db->selectCollection($collection)->update(
+            $this->normalizeWhere($where),
+            $set,
+            array_merge([
+                'w' => $this->write_concern,
+                'multiple' => !$is_replace,
+            ], $options)
+        );
+    }
+
+    protected function __named_remove($collection, $where = [], $fields = [],
+        $options = [])
+    {
+        $multiple = isset($options['multiple']) ? $options['multiple'] : true;
+        unset($options['multiple']);
+
+        if ($fields) {
+            return $this->__named_update(
+                $collection,
+                ['$unset' => array_fill_keys((array)$fields, true)],
+                $where,
+                array_merge(compact('multiple'), $options)
+            );
+        } else {
+            return $this->db->selectCollection($collection)->remove(
+                $this->normalizeWhere($where),
+                array_merge([
+                    'w' => $this->write_concern,
+                    'justOne' => !$multiple
+                ], $options)
+            );
+        }
+    }
+
+    protected function __named_insertIgnore($collection, $set, $key = [],
+        $options = [])
+    {
+        $this->splitKey($set, $key);
+
+        $return = $this->__named_update(
+            $collection,
+            ['$setOnInsert' => $set ?: $key],
+            $key,
+            array_merge([
+                'upsert' => true,
+                'multiple' => false
+            ], $options)
+        );
+
+        $return['key'] = $key;
+        $return['updatedExisting'] = false;
+
+        if (!isset($return['upserted'])) {
+            $return['n'] = 0;
+        }
+
+        return $return;
+    }
+
+    protected function __named_replaceExisting($collection, $set, $key = [],
+        $options = [])
+    {
+        $this->splitKey($set, $key, false);
+
+        $return = $this->__named_update(
+            $collection,
+            $set,
+            $key,
+            array_merge([
+                'is_replace' => true,
+            ], $options)
+        );
+
+        $return['key'] = $key;
+
+        return $return;
+    }
+
+    protected function __named_insertOrReplace($collection, $set, $key = [],
+        $options = [])
+    {
+        $this->splitKey($set, $key, false);
+
+        $return = $this->__named_update(
+            $collection,
+            $set,
+            $key,
+            array_merge([
+                'upsert' => true,
+                'is_replace' => true,
+            ], $options)
+        );
+
+        $return['key'] = $key;
+
+        return $return;
+    }
+
+    protected function __named_updateExisting($collection, $set, $key = [],
+        $options = [])
+    {
+        $this->splitKey($set, $key);
+
+        if (!$set) {
+            throw new \InvalidArgumentException('Nothing to set');
+        }
+
+        $return = $this->__named_update(
+            $collection,
+            $set,
+            $key,
+            array_merge([
+                'multiple' => false
+            ], $options)
+        );
+
+        $return['key'] = $key;
+
+        return $return;
+    }
+
+    protected function __named_insertOrUpdate($collection, $set, $key = [],
+        $insert = [], $options = [])
+    {
+        $this->splitKey($set, $key);
+
+        $setOnInsert = [];
+        foreach ($insert as $field) {
+            if (isset($set[$field])) {
+                $setOnInsert[$field] = $set[$field];
+                unset($set[$field]);
+            }
+        }
+
+        $operation = [];
+
+        if ($set) {
+            $operation['$set'] = $set;
+        }
+
+        if ($setOnInsert) {
+            $operation['$setOnInsert'] = $setOnInsert;
+        }
+
+        if (!$operation) {
+            $operation['$setOnInsert'] = $key;
+        }
+
+        $return = $this->__named_update(
+            $collection,
+            $operation,
+            $key,
+            array_merge([
+                'upsert' => true,
+                'multiple' => false
+            ], $options)
+        );
+
+        $return['key'] = $key;
+
+        if (!isset($operation['$set'])) {
+            $return['updatedExisting'] = false;
+
+            if (!isset($return['upserted'])) {
+                $return['n'] = 0;
+            }
+        }
+
+        return $return;
+    }
+
+    protected function __named_drop($collection, $options = [])
+    {
+        return $this->db->dropCollection($collection);
+    }
+
+    public function fromUnixTimestamp($timestamp)
+    {
         return new \MongoDate($timestamp);
     }
 
-    public function toUnixTimestamp($timestamp) {
+    public function toUnixTimestamp($timestamp)
+    {
         return $timestamp->sec;
     }
 
-    public function newId($id = null) {
-        return new \MongoId($id);
+    protected function __named_ensureIndex($collection, $key, $options = [])
+    {
+        return $this->db->selectCollection($collection)->ensureIndex(
+            $key,
+            array_merge([
+                'w' => $this->write_concern,
+            ], $options)
+        );
     }
 
-    public function ensureIndex($parameter) {
-		extract($parameter);
-		return $this->connect()->selectCollection($collection)->ensureIndex($index, [
-            'w' => (int)$this->is_safe
-        ]);
-	}
+    protected function normalizeWhere($where)
+    {
+        $return = [];
+
+        foreach ((array)$where as $field => $value) {
+            if ($this->isNumericArray($value)) {
+                $value = ['$in' => $value];
+
+            } elseif (is_array($value)) {
+                foreach ($value as $collation => $collation_value) {
+                    switch ($collation) {
+                        case '=':
+                            $value = $collation_value;
+                            break 2;
+                        case '<':
+                            unset($value[$collation]);
+                            $value['$lt'] = $collation_value;
+                            break;
+                        case '>':
+                            unset($value[$collation]);
+                            $value['$gt'] = $collation_value;
+                            break;
+                        case '<=':
+                            unset($value[$collation]);
+                            $value['$lte'] = $collation_value;
+                            break;
+                        case '>=':
+                            unset($value[$collation]);
+                            $value['$gte'] = $collation_value;
+                            break;
+                        case '<>':
+                            unset($value[$collation]);
+                            $value['$ne'] = $collation_value;
+                            break;
+                    }
+                }
+            }
+
+            $return[$field] = $value;
+        }
+
+        return $return;
+    }
+
+    protected function splitKey(&$set, &$key, $is_unset = true)
+    {
+        $fields = (array)$key ?: ['_id'];
+        $key = isset($set['_id'])
+            ? ['_id' => $set['_id']]
+            : [];
+
+        foreach ($fields as $field) {
+            if (!isset($set[$field])) {
+                throw new \InvalidArgumentException(sprintf(
+                    'Field \'%s\' is not set for set %s',
+                    $field,
+                    print_r($set, true)
+                ));
+            }
+
+            $key[$field] = $set[$field];
+
+            if ($is_unset) {
+                unset($set[$field]);
+            }
+        }
+    }
 }
 

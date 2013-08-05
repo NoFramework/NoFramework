@@ -11,7 +11,8 @@ namespace NoFramework\Http\Exception;
 
 class Redirect extends \RuntimeException
 {
-    public function __construct ($location, $code = 302, \Exception $previous = NULL)
+    public function __construct ($location, $code = 302,
+        \Exception $previous = NULL)
     {
         parent::__construct($location, $code, $previous);
     }
@@ -21,3 +22,4 @@ class Redirect extends \RuntimeException
         return $this->getMessage();
     }
 }
+

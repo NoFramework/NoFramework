@@ -57,38 +57,40 @@ class Config
 
     protected function getCallbacks()
     {
-        $out = [];
+        $return = [];
 
         foreach (get_class_methods($this) as $method) {
             if (0 === strpos($method, static::MAGIC_PARSE_METHOD)) {
-                $out['!' . substr($method, strlen(static::MAGIC_PARSE_METHOD))]
-                    = [$this, $method];
+                $return['!' . substr(
+                    $method,
+                    strlen(static::MAGIC_PARSE_METHOD)
+                )] = [$this, $method];
             }
         }
         
-        return $out;
+        return $return;
     }
 
-    public function withFile($input, $closure, $offset = 0, $pos = 0)
+    public function withFile($filename, $closure, $offset = 0, $pos = 0)
     {
-        if (0 !== strpos($input, DIRECTORY_SEPARATOR)) {
-            $input = $this->config_path . DIRECTORY_SEPARATOR . $input;
+        if (0 !== strpos($filename, DIRECTORY_SEPARATOR)) {
+            $filename = $this->config_path . DIRECTORY_SEPARATOR . $filename;
         }
-
-        $yaml_parse = 'yaml_parse';
 
         if ($offset) {
-            $input = file_get_contents($input, false, null, $offset);
-
+            $this->withString(
+                file_get_contents($filename, false, null, $offset),
+                $closure,
+                $pos
+            );
         } else {
-            $yaml_parse .= '_file'; 
+            $closure(
+                yaml_parse_file($filename, $pos, $ndocs, $this->getCallbacks()),
+                $ndocs
+            );
+            gc_collect_cycles();
         }
 
-        $closure(
-            $yaml_parse($input, $pos, $ndocs, $this->getCallbacks()),
-            $ndocs
-        );
-        gc_collect_cycles();
         return $this;
     }
 
@@ -116,12 +118,6 @@ class Config
     public function __parse_setTimeLimit($value, $tag, $flags)
     {
         set_time_limit($value);
-        return $value;
-    }
-
-    public function __parse_setTimezone($value, $tag, $flags)
-    {
-        date_default_timezone_set($value);
         return $value;
     }
 
@@ -169,25 +165,25 @@ class Config
                 $value = $value['filename'];
             }
 
-            $this->withFile($value, function ($in) use (&$out) {
-                $out = $in;
+            $this->withFile($value, function ($state) use (&$return) {
+                $return = $state;
             }, $offset);
 
             if (
                 $id and
-                isset($out['$new']) and
-                !isset($out['$new']['local_reuse'])
+                isset($return['$new']) and
+                !isset($return['$new']['local_reuse'])
             ) {
-                $out['$new']['local_reuse'] = implode('.', $id);
+                $return['$new']['local_reuse'] = implode('.', $id);
             }
 
-            return $out;
+            return $return;
         }];
     }
 
     public function __parse_new($value, $tag, $flags)
     {
-        return ['$new' => is_string($value) ? ['class' => $value] : $value];
+        return ['$new' => $value];
     }
 
     public function __parse_reuse($value, $tag, $flags)
@@ -195,9 +191,9 @@ class Config
         return ['$reuse' => $value];
     }
 
-    public function __parse_autoloadRegister($value, $tag, $flags)
+    public function __parse_autoload($value, $tag, $flags)
     {
-        $out = [];
+        $return = [];
 
         foreach ((array)$value as $state) {
             if (!$state) {
@@ -232,13 +228,13 @@ class Config
                 str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php';
             }
 
-            $out[] = (new $class($state))->register();
+            $return[] = (new $class($state))->register();
         }
 
-        return $out;
+        return $return;
     }
 
-    public function __parse_errorHandlerRegister($value, $tag, $flags)
+    public function __parse_error_handler($value, $tag, $flags)
     {
         if (isset($value['error_types'])) {
             $error_types = (array)$value['error_types'];
@@ -290,7 +286,10 @@ class Config
         }
 
         (new static)->withFile($filename, function ($state) use ($name) {
-            Factory::$name($state);
+            $class = isset($state['class'])
+                ? $state['class']
+                : __NAMESPACE__ . '\Factory';
+            $class::$name($state);
         }, $offset);
 
         return Factory::$name();

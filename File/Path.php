@@ -13,29 +13,29 @@ class Path
 {
     use \NoFramework\MagicProperties;
 
-    protected /*string*/ $separator = DIRECTORY_SEPARATOR;
+    protected $separator = DIRECTORY_SEPARATOR;
 
-    protected /*array*/ function __property_split()
+    protected function __property_split()
     {
         return explode($this->separator, $this->path);
     }
 
-    protected /*string*/ function __property_dirname()
+    protected function __property_dirname()
     {
         return $this->slice(0, -1) ?: '/';
     }
 
-    protected /*string*/ function __property_basename()
+    protected function __property_basename()
     {
         return $this->slice(-1);
     }
 
-    protected /*string*/ function __property_extension()
+    protected function __property_extension()
     {
         return substr(strrchr($this->basename, '.'), 1);
     }
 
-    protected /*string*/ function __property_filename()
+    protected function __property_filename()
     {
         return
             $this->extension
@@ -43,18 +43,13 @@ class Path
             : $this->basename;
     }
 
-    protected /*string*/ function __property_path()
+    protected function __property_path()
     {
         return
             ($this->dirname
-            ? rtrim($this->dirname, $this->separator) . $this->separator
-            : '') .
-
-            $this->filename .
-
-            ($this->extension
-            ? '.' . $this->extension
-            : '');
+                ? rtrim($this->dirname, $this->separator) . $this->separator
+                : '') .
+            $this->filename . ($this->extension ? '.' . $this->extension : '');
     }
 
     public function __construct($state = [])
