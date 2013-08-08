@@ -13,18 +13,20 @@ class Model extends Factory
 {
     protected $storage;
     protected $collection;
+    protected $propagate = 'storage';
+    protected $separator = '.';
 
     protected function __operator_new($state = null, $id = null)
     {
         $collection = (array)$id;
         $collection =
-            ($this->collection ? $this->collection . '.' : '') .
+            ($this->collection ? $this->collection . $this->separator : '') .
             array_pop($collection);
 
-        return parent::__operator_new(array_merge([
-            'storage' => $this->storage,
-            'collection' => $collection
-        ], $state), $id);
+        return parent::__operator_new(array_merge(
+            compact('collection'),
+            $state
+        ), $id);
     }
 
     public function __call($method, $argument)
@@ -33,19 +35,6 @@ class Model extends Factory
             [['collection' => $this->collection]],
             $argument
         ));
-    }
-
-    public function runEach($commands, $closure = null, $is_try_catch = false)
-    {
-        foreach ($commands as &$command) {
-            if (!isset($command['collection'])) {
-                $command['collection'] = $this->collection;
-            }
-        }
-
-        $this->storage->runEach($commands, $closure, $is_try_catch);
-
-        return $this;
     }
 }
 

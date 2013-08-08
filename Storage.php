@@ -59,7 +59,7 @@ abstract class Storage
         foreach ($commands as $command) {
             if ($is_try_catch) {
                 try {
-                    $result = $this->run($command);
+                   $result = $this->run($command);
                 } catch (\Exception $e) {
                     $result = $e;
                 }

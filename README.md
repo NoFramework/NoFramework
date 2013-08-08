@@ -207,10 +207,10 @@ ini_set: !ini_set
 
 timezone: !setTimezone UTC
 
-autoload: !autoloadRegister
+autoload: !autoload
   - NoFramework
 
-error_handler: !errorHandlerRegister
+error_handler: !error_handler
 
 application: !new
   class: \Application

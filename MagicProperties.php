@@ -77,15 +77,17 @@ trait MagicProperties
 
         } else {
             $ttl = false;
-            $return = $this->{'__property_' . $property}($ttl);
+            $value = $this->{'__property_' . $property}($ttl);
 
             if (false === $ttl) {
-                $this->__property[$property] = &$return;
+                $this->__property[$property] = $value;
+                $return = &$this->__property[$property];
 
             } else {
-                $this->__property['$cache'][$property]['value'] = &$return;
+                $this->__property['$cache'][$property]['value'] = $value;
                 $this->__property['$cache'][$property]['expire']
                      = $ttl + microtime(true);
+                $return = &$this->__property['$cache'][$property]['value'];
             }
         }
 

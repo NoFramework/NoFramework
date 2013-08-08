@@ -53,7 +53,7 @@ class Twig extends \NoFramework\Render
             'optimizations' => 'optimizations',
         ] as $property => $option) {
             if (isset($this->$property)) {
-                $config[$option] = $this->$property
+                $config[$option] = $this->$property;
             }
         }
 
