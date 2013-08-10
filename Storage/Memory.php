@@ -9,12 +9,12 @@
 
 namespace NoFramework\Storage;
 
-class Memory extends \NoFramework\Storage
+class Memory implements \NoFramework\Storage
 {
     public $data = [];
 
-    protected function __named_find($collection, $where = [], $fields = [],
-        $sort = [], $skip = 0, $limit = 0, $options = [])
+    public function find($collection, $where = [], $fields = [], $sort = [],
+        $skip = 0, $limit = 0, $options = [])
     {
         if (!isset($this->data[$collection])) {
             return;
@@ -67,7 +67,7 @@ class Memory extends \NoFramework\Storage
         }
     }
 
-    protected function __named_count($collection, $where = [], $options = [])
+    public function count($collection, $where = [], $options = [])
     {
         if (!isset($this->data[$collection])) {
             return 0;
@@ -80,34 +80,7 @@ class Memory extends \NoFramework\Storage
         return count($data);
     }
 
-    protected function __named_insert($collection, $set, $options = [])
-    {
-        if (!isset($set['_id'])) {
-            $this->data[$collection][] = $set;
-            $_id = $this->endKey($this->data[$collection]);
-
-        } elseif (!isset($this->data[$collection][$set['_id']])) {
-            $_id = $set['_id'];
-            unset($set['_id']);
-            $this->data[$collection][$_id] = $set;
-
-        } else {
-            throw new \RuntimeException(sprintf(
-                'Duplicate key \'%s\' for collection \'%s\'',
-                $set['_id'],
-                $collection
-            ));
-        }
-
-        return [
-            'n' => 1,
-            'updatedExisting' => false,
-            'upserted' => $_id
-        ];
-    }
-
-    protected function __named_update($collection, $set, $where = [],
-        $options = [])
+    public function update($collection, $set, $where = [], $options = [])
     {
         if (isset($set['_id'])) {
             throw new \InvalidArgumentException(
@@ -161,7 +134,7 @@ class Memory extends \NoFramework\Storage
         ];
     }
 
-    protected function __named_remove($collection, $where = [], $fields = [],
+    public function remove($collection, $where = [], $fields = [],
         $options = [])
     {
         if (isset($fields['_id'])) {
@@ -210,8 +183,33 @@ class Memory extends \NoFramework\Storage
             : compact('n');
     }
 
-    protected function __named_insertIgnore($collection, $set, $key = [],
-        $options = [])
+    public function insert($collection, $set, $options = [])
+    {
+        if (!isset($set['_id'])) {
+            $this->data[$collection][] = $set;
+            $_id = $this->endKey($this->data[$collection]);
+
+        } elseif (!isset($this->data[$collection][$set['_id']])) {
+            $_id = $set['_id'];
+            unset($set['_id']);
+            $this->data[$collection][$_id] = $set;
+
+        } else {
+            throw new \RuntimeException(sprintf(
+                'Duplicate key \'%s\' for collection \'%s\'',
+                $set['_id'],
+                $collection
+            ));
+        }
+
+        return [
+            'n' => 1,
+            'updatedExisting' => false,
+            'upserted' => $_id
+        ];
+    }
+
+    public function insertIgnore($collection, $set, $key = [], $options = [])
     {
         $this->splitKey($set, $key, false);
 
@@ -226,26 +224,7 @@ class Memory extends \NoFramework\Storage
         );
     }
 
-    protected function __named_replaceExisting($collection, $set, $key = [],
-        $options = [])
-    {
-        $this->splitKey($set, $key, false);
-
-        $return = $this->__named_update(
-            $collection,
-            $set,
-            $key,
-            array_merge([
-                'is_replace' => true,
-            ], $options)
-        );
-
-        $return['key'] = $key;
-
-        return $return;
-    }
-
-    protected function __named_insertOrReplace($collection, $set, $key = [],
+    public function insertOrReplace($collection, $set, $key = [],
         $options = [])
     {
         $this->splitKey($set, $key, false);
@@ -265,21 +244,17 @@ class Memory extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_updateExisting($collection, $set, $key = [],
+    public function replaceExisting($collection, $set, $key = [],
         $options = [])
     {
-        $this->splitKey($set, $key);
-
-        if (!$set) {
-            throw new \InvalidArgumentException('Nothing to set');
-        }
+        $this->splitKey($set, $key, false);
 
         $return = $this->__named_update(
             $collection,
             $set,
             $key,
             array_merge([
-                'multiple' => false
+                'is_replace' => true,
             ], $options)
         );
 
@@ -288,8 +263,8 @@ class Memory extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_insertOrUpdate($collection, $set, $key = [],
-        $insert = [], $options = [])
+    public function insertOrUpdate($collection, $set, $key = [],
+        $insert_only = [], $options = [])
     {
         $document = $set;
 
@@ -326,7 +301,29 @@ class Memory extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_drop($collection, $options = [])
+    public function updateExisting($collection, $set, $key = [], $options = [])
+    {
+        $this->splitKey($set, $key);
+
+        if (!$set) {
+            throw new \InvalidArgumentException('Nothing to set');
+        }
+
+        $return = $this->__named_update(
+            $collection,
+            $set,
+            $key,
+            array_merge([
+                'multiple' => false
+            ], $options)
+        );
+
+        $return['key'] = $key;
+
+        return $return;
+    }
+
+    public function drop($collection, $options = [])
     {
         unset($this->data[$collection]);
         return [

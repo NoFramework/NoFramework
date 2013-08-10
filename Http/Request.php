@@ -121,8 +121,10 @@ class Request extends Url
 
     public function __call($property, $parameter) {
         if (in_array($property, ['query', 'post', 'cookie', 'files'])) {
-            return isset($this->$property[$parameter[0]])
-                ? $this->$property[$parameter[0]]
+            $property = $this->$property;
+
+            return isset($property[$parameter[0]])
+                ? $property[$parameter[0]]
                 : null;
         } else {
             trigger_error(

@@ -12,6 +12,7 @@ namespace NoFramework\Error;
 class Handler
 {
     protected $error_types = -1;
+    protected $is_preload_exception = true;
 
     public function __construct($error_types = false)
     {
@@ -20,9 +21,11 @@ class Handler
         }
     }
 
-    public function getErrorClass($errno)
+    public function getErrorClass()
     {
-        $class = [
+        $return = [];
+
+        foreach ([
             E_USER_ERROR => 'Recoverable',
             E_RECOVERABLE_ERROR => 'Recoverable',
             E_USER_WARNING => 'Warning',
@@ -32,16 +35,17 @@ class Handler
             E_STRICT => 'Strict',
             E_USER_DEPRECATED => 'Deprecated',
             E_DEPRECATED => 'Deprecated'
-        ];
+        ] as $errno => $errclass) {
+            $return[$errno] = __NAMESPACE__ . '\Exception\\' . $errclass;
+        }
 
-        return isset($class[$errno]) ? $class[$errno] : false;
+        return $return;
     }
 
     public function __invoke($errno, $errstr, $errfile, $errline, $errcontext)
     {
         if (0 !== error_reporting()) {
-            $class = __NAMESPACE__ . '\Exception\\' .
-                $this->getErrorClass($errno);
+            $class = $this->getErrorClass()[$errno];
             throw new $class($errno, $errstr, $errfile, $errline, $errcontext);
         }
 
@@ -50,6 +54,12 @@ class Handler
 
     public function register()
     {
+        if ($this->is_preload_exception) {
+            foreach (array_unique($this->getErrorClass()) as $class) {
+                spl_autoload_call($class);
+            }
+        }
+
         return set_error_handler($this, $this->error_types);
     }
 

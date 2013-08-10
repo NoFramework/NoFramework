@@ -9,7 +9,7 @@
 
 namespace NoFramework\Storage;
 
-class Mongo extends \NoFramework\Storage
+class Mongo implements \NoFramework\Storage
 {
     use \NoFramework\MagicProperties;
 
@@ -51,8 +51,8 @@ class Mongo extends \NoFramework\Storage
         return $this->connection->selectDB($this->database);
     }
 
-    protected function __named_find($collection, $where = [], $fields = [],
-        $sort = [], $skip = 0, $limit = 0, $options = [])
+    public function find($collection, $where = [], $fields = [], $sort = [],
+        $skip = 0, $limit = 0, $options = [])
     {
         $option = function ($option) use ($options) {
             return isset($options[$option]) ? $options[$option] : null;
@@ -124,7 +124,7 @@ class Mongo extends \NoFramework\Storage
         return $cursor;
     }
 
-    protected function __named_count($collection, $where = [], $options = [])
+    public function count($collection, $where = [], $options = [])
     {
         $option = function ($option) use ($options) {
             return isset($options[$option]) ? $options[$option] : null;
@@ -139,27 +139,7 @@ class Mongo extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_insert($collection, $set, $options = [])
-    {
-		$return = $this->db->selectCollection($collection)->insert(
-            $set,
-            array_merge([
-                'w' => $this->write_concern,
-            ], $options)
-        );
-
-        $return['updatedExisting'] = false;
-        $return['n'] = 1;
-
-        if (isset($set['_id'])) {
-            $return['upserted'] = $set['_id'];
-        }
-
-        return $return;
-    }
-
-    protected function __named_update($collection, $set, $where = [],
-        $options = [])
+    public function update($collection, $set, $where = [], $options = [])
     {
         $option = function ($option) use ($options) {
             return isset($options[$option]) ? $options[$option] : null;
@@ -191,7 +171,7 @@ class Mongo extends \NoFramework\Storage
         );
     }
 
-    protected function __named_remove($collection, $where = [], $fields = [],
+    public function remove($collection, $where = [], $fields = [],
         $options = [])
     {
         $multiple = isset($options['multiple']) ? $options['multiple'] : true;
@@ -215,8 +195,26 @@ class Mongo extends \NoFramework\Storage
         }
     }
 
-    protected function __named_insertIgnore($collection, $set, $key = [],
-        $options = [])
+    public function insert($collection, $set, $options = [])
+    {
+		$return = $this->db->selectCollection($collection)->insert(
+            $set,
+            array_merge([
+                'w' => $this->write_concern,
+            ], $options)
+        );
+
+        $return['updatedExisting'] = false;
+        $return['n'] = 1;
+
+        if (isset($set['_id'])) {
+            $return['upserted'] = $set['_id'];
+        }
+
+        return $return;
+    }
+
+    public function insertIgnore($collection, $set, $key = [], $options = [])
     {
         $this->splitKey($set, $key);
 
@@ -240,26 +238,7 @@ class Mongo extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_replaceExisting($collection, $set, $key = [],
-        $options = [])
-    {
-        $this->splitKey($set, $key, false);
-
-        $return = $this->__named_update(
-            $collection,
-            $set,
-            $key,
-            array_merge([
-                'is_replace' => true,
-            ], $options)
-        );
-
-        $return['key'] = $key;
-
-        return $return;
-    }
-
-    protected function __named_insertOrReplace($collection, $set, $key = [],
+    public function insertOrReplace($collection, $set, $key = [],
         $options = [])
     {
         $this->splitKey($set, $key, false);
@@ -279,21 +258,17 @@ class Mongo extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_updateExisting($collection, $set, $key = [],
+    public function replaceExisting($collection, $set, $key = [],
         $options = [])
     {
-        $this->splitKey($set, $key);
-
-        if (!$set) {
-            throw new \InvalidArgumentException('Nothing to set');
-        }
+        $this->splitKey($set, $key, false);
 
         $return = $this->__named_update(
             $collection,
             $set,
             $key,
             array_merge([
-                'multiple' => false
+                'is_replace' => true,
             ], $options)
         );
 
@@ -302,8 +277,8 @@ class Mongo extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_insertOrUpdate($collection, $set, $key = [],
-        $insert = [], $options = [])
+    public function insertOrUpdate($collection, $set, $key = [],
+        $insert_only = [], $options = [])
     {
         $this->splitKey($set, $key);
 
@@ -352,7 +327,29 @@ class Mongo extends \NoFramework\Storage
         return $return;
     }
 
-    protected function __named_drop($collection, $options = [])
+    public function updateExisting($collection, $set, $key = [], $options = [])
+    {
+        $this->splitKey($set, $key);
+
+        if (!$set) {
+            throw new \InvalidArgumentException('Nothing to set');
+        }
+
+        $return = $this->__named_update(
+            $collection,
+            $set,
+            $key,
+            array_merge([
+                'multiple' => false
+            ], $options)
+        );
+
+        $return['key'] = $key;
+
+        return $return;
+    }
+
+    public function drop($collection, $options = [])
     {
         return $this->db->dropCollection($collection);
     }
@@ -367,7 +364,7 @@ class Mongo extends \NoFramework\Storage
         return $timestamp->sec;
     }
 
-    protected function __named_ensureIndex($collection, $key, $options = [])
+    public function ensureIndex($collection, $key, $options = [])
     {
         return $this->db->selectCollection($collection)->ensureIndex(
             $key,
@@ -382,7 +379,8 @@ class Mongo extends \NoFramework\Storage
         $return = [];
 
         foreach ((array)$where as $field => $value) {
-            if ($this->isNumericArray($value)) {
+            if (is_array($value)
+                and array_keys($value) === range(0, count($value) - 1)) {
                 $value = ['$in' => $value];
 
             } elseif (is_array($value)) {

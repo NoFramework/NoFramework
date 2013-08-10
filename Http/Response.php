@@ -31,7 +31,7 @@ class Response
 
         $get = function ($option, $default = '') use ($cookie) {
             return isset($cookie[$option]) ? $cookie[$option] : $default;
-        }
+        };
 
         setcookie(
             $cookie['name'],

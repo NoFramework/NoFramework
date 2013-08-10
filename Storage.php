@@ -9,76 +9,37 @@
 
 namespace NoFramework;
 
-abstract class Storage
+interface Storage
 {
-    use NamedParameters;
+    public function find($collection, $where = [], $fields = [], $sort = [],
+        $skip = 0, $limit = 0, $options = []);
 
-    abstract protected function __named_find($collection, $where = [],
-        $fields = [], $sort = [], $skip = 0, $limit = 0, $options = []);
+    public function count($collection, $where = [], $options = []);
 
-    abstract protected function __named_count($collection, $where = [],
+    public function update($collection, $set, $where = [], $options = []);
+
+    public function remove($collection, $where = [], $fields = [],
         $options = []);
 
-    abstract protected function __named_insert($collection, $set,
+    public function insert($collection, $set, $options = []);
+
+    public function insertIgnore($collection, $set, $key = [], $options = []);
+
+    public function insertOrReplace($collection, $set, $key = [],
         $options = []);
 
-    abstract protected function __named_update($collection, $set, $where = [],
+    public function replaceExisting($collection, $set, $key = [],
         $options = []);
 
-    abstract protected function __named_remove($collection, $where = [],
-        $fields = [], $options = []);
+    public function insertOrUpdate($collection, $set, $key = [],
+        $insert_only = [], $options = []);
 
-    abstract protected function __named_insertIgnore($collection, $set,
-        $key = [], $options = []);
+    public function updateExisting($collection, $set, $key = [], $options = []);
 
-    abstract protected function __named_replaceExisting($collection, $set,
-        $key = [], $options = []);
+    public function drop($collection, $options = []);
 
-    abstract protected function __named_insertOrReplace($collection, $set,
-        $key = [], $options = []);
+    public function fromUnixTimestamp($timestamp);
 
-    abstract protected function __named_updateExisting($collection, $set,
-        $key = [], $options = []);
-
-    abstract protected function __named_insertOrUpdate($collection, $set,
-        $key = [], $insert = [], $options = []);
-
-    abstract protected function __named_drop($collection, $options = []);
-
-    abstract public function fromUnixTimestamp($timestamp);
-
-    abstract public function toUnixTimestamp($timestamp);
-
-    protected function __named_run($method, $parameter = [])
-    {
-        return $this->$method($parameter);
-    }
-
-    public function runEach($commands, $closure = null, $is_try_catch = false)
-    {
-        foreach ($commands as $command) {
-            if ($is_try_catch) {
-                try {
-                   $result = $this->run($command);
-                } catch (\Exception $e) {
-                    $result = $e;
-                }
-            } else {
-                $result = $this->run($command);
-            }
-
-            if ($closure) {
-                $closure($result);
-            }
-        }
-
-        return $this;
-    }
-
-    protected function isNumericArray($object)
-    {
-        return (is_array($object)
-            and array_keys($object) === range(0, count($object) - 1));
-    }
+    public function toUnixTimestamp($timestamp);
 }
 
