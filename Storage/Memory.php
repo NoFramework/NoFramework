@@ -122,7 +122,7 @@ class Memory implements \NoFramework\Storage
         }
 
         if (!$n and $option('upsert')) {
-            return $this->__named_insert(
+            return $this->insert(
                 $collection,
                 $option('is_replace') ? $set : array_merge($set, $where)
             );
@@ -215,12 +215,12 @@ class Memory implements \NoFramework\Storage
 
         return array_merge(
             compact('key'),
-            $this->findId($collection, $key)
-                ? [
+            false === $this->findId($collection, $key)
+                ? $this->insert($collection, $set)
+                : [
                     'n' => 0,
                     'updatedExisting' => false
                 ]
-                : $this->__named_insert($collection, $set)
         );
     }
 
@@ -229,7 +229,7 @@ class Memory implements \NoFramework\Storage
     {
         $this->splitKey($set, $key, false);
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $set,
             $key,
@@ -249,7 +249,7 @@ class Memory implements \NoFramework\Storage
     {
         $this->splitKey($set, $key, false);
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $set,
             $key,
@@ -270,12 +270,12 @@ class Memory implements \NoFramework\Storage
 
         $this->splitKey($set, $key);
 
-        foreach ($insert as $field) {
+        foreach ($insert_only as $field) {
             unset($set[$field]);
         }
 
         if ($set) {
-            $return = $this->__named_update(
+            $return = $this->update(
                 $collection,
                 $set,
                 $key,
@@ -285,15 +285,16 @@ class Memory implements \NoFramework\Storage
             );
 
             if (!$return['updatedExisting']) {
-                $return = $this->__named_insert($collection, $document);
+                $return = $this->insert($collection, $document);
             }
         } else {
-            $return = $this->findId($collection, $key)
-                ? [
+            $return =
+                false === $this->findId($collection, $key)
+                ? $this->insert($collection, $document)
+                : [
                     'n' => 0,
                     'updatedExisting' => false
-                ]
-                : $this->__named_insert($collection, $document);
+                ];
         }
 
         $return['key'] = $key;
@@ -309,7 +310,7 @@ class Memory implements \NoFramework\Storage
             throw new \InvalidArgumentException('Nothing to set');
         }
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $set,
             $key,

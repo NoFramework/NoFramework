@@ -21,6 +21,24 @@ class Shell extends Factory
         if (is_string($code)) {
             if (0 === strpos(trim($code), 'ns ')) {
                 $this->namespace = trim(substr(trim($code), 2));
+                $is_registered = false;
+
+                Autoload::walk(function ($autoload) use (&$is_registered) {
+                    $is_registered = true;
+                }, $this->namespace);
+
+                if (!$is_registered) {
+                    (new Autoload([
+                        'namespace' => $this->namespace,
+                        'path' => realpath(
+                        __DIR__ . DIRECTORY_SEPARATOR . '..' .
+                        DIRECTORY_SEPARATOR .
+                        str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace)
+                        )
+                    ]))->register();
+
+                    printf('Autoload: %s' . PHP_EOL, $this->namespace);
+                }
 
             } else {
                 foreach (array_reverse($this->shortcuts) as $replace) {

@@ -229,7 +229,7 @@ class Factory implements \ArrayAccess
             )
             : get_called_class()
         );
-        
+
         $class->instance = $class->newInstanceWithoutConstructor();
 
         unset($state['class']);

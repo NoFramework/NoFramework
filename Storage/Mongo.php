@@ -178,7 +178,7 @@ class Mongo implements \NoFramework\Storage
         unset($options['multiple']);
 
         if ($fields) {
-            return $this->__named_update(
+            return $this->update(
                 $collection,
                 ['$unset' => array_fill_keys((array)$fields, true)],
                 $where,
@@ -197,7 +197,7 @@ class Mongo implements \NoFramework\Storage
 
     public function insert($collection, $set, $options = [])
     {
-		$return = $this->db->selectCollection($collection)->insert(
+        $return = $this->db->selectCollection($collection)->insert(
             $set,
             array_merge([
                 'w' => $this->write_concern,
@@ -218,7 +218,7 @@ class Mongo implements \NoFramework\Storage
     {
         $this->splitKey($set, $key);
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             ['$setOnInsert' => $set ?: $key],
             $key,
@@ -243,7 +243,7 @@ class Mongo implements \NoFramework\Storage
     {
         $this->splitKey($set, $key, false);
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $set,
             $key,
@@ -263,7 +263,7 @@ class Mongo implements \NoFramework\Storage
     {
         $this->splitKey($set, $key, false);
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $set,
             $key,
@@ -283,7 +283,7 @@ class Mongo implements \NoFramework\Storage
         $this->splitKey($set, $key);
 
         $setOnInsert = [];
-        foreach ($insert as $field) {
+        foreach ($insert_only as $field) {
             if (isset($set[$field])) {
                 $setOnInsert[$field] = $set[$field];
                 unset($set[$field]);
@@ -304,7 +304,7 @@ class Mongo implements \NoFramework\Storage
             $operation['$setOnInsert'] = $key;
         }
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $operation,
             $key,
@@ -335,7 +335,7 @@ class Mongo implements \NoFramework\Storage
             throw new \InvalidArgumentException('Nothing to set');
         }
 
-        $return = $this->__named_update(
+        $return = $this->update(
             $collection,
             $set,
             $key,

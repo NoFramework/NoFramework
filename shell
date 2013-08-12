@@ -11,37 +11,14 @@ ini_set: !ini_set
 
 autoload: !autoload
   - NoFramework
-  - namespace: ApiClient
-    path: /home/natly.ru/classes/ApiClient
+  - Natly
+
 error_handler: !error_handler
 class: NoFramework\Shell
 log: !new Log\Output
-mon: !new
-  class: Storage\Mongo
-  database: test
-mem: !new
-  class: Storage\Memory
-  data:
-    user:
-      - name: whiletrue
-        password: 123
-      - name: exilibris
-        password: 345
-      - name: nat
-        password: 567
 m: !new
   class: Model
-  storage: !reuse mon
-  auto: true
-
-m1: !new
-  class: Model
-  storage: !reuse mem
-  auto: true
-
-vk: !new
-  class: \ApiClient\Vk
-  cookie_file: !local_path vk_cookie.txt
+  category: !new \Natly\Model\Category
 prompt: '>'
 history_path: !local_path .NoFramework_history
 shortcuts:
