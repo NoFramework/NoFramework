@@ -18,15 +18,8 @@ class Autoload
 
     public function __construct($state = [])
     {
-        foreach ([
-            'namespace',
-            'path',
-            'extension',
-            'separator'
-        ] as $property) {
-            if (isset($state[$property])) {
-                $this->$property = $state[$property];
-            }
+        foreach ($state as $property => $value) {
+            $this->$property = $value;
         }
     }
 
@@ -60,9 +53,9 @@ class Autoload
     {
         if (!spl_autoload_register($this)) {
             trigger_error(sprintf(
-                'Could not register \'%s\' for namespace \'%s\''
-                , get_called_class()
-                , $this->namespace
+                'Could not register \'%s\' for namespace \'%s\'',
+                static::class,
+                $this->namespace
             ), E_USER_WARNING);
         }
 
@@ -74,7 +67,7 @@ class Autoload
         if (!spl_autoload_unregister($this)) {
             trigger_error(sprintf(
                 'Could not unregister \'%s\' for namespace \'%s\''
-                , get_called_class()
+                , static::class
                 , $this->namespace
             ), E_USER_WARNING);
         }
@@ -82,14 +75,13 @@ class Autoload
         return $this;
     }
 
-    public static function walk($closure, $namespace = false)
+    public static function find($namespace = false)
     {
         foreach ((array)spl_autoload_functions() as $autoload) {
-            if ($autoload instanceof self
-            and (!$namespace
-                or in_array($autoload->namespace, (array)$namespace))
-            ){
-                $closure($autoload);
+            if ($autoload instanceof self and (
+                !$namespace or in_array($autoload->namespace, (array)$namespace)
+            )){
+                yield $autoload->namespace => $autoload;
             }
         }
     }

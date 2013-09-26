@@ -15,6 +15,8 @@ class Shell extends Factory
     protected $history_path;
     protected $namespace = __NAMESPACE__;
     protected $shortcuts = [];
+    protected $buy_message = '  ';
+    protected $invoke = [];
 
     public function __invoke($code)
     {
@@ -30,11 +32,14 @@ class Shell extends Factory
                 if (!$is_registered) {
                     (new Autoload([
                         'namespace' => $this->namespace,
-                        'path' => realpath(
-                        __DIR__ . DIRECTORY_SEPARATOR . '..' .
-                        DIRECTORY_SEPARATOR .
-                        str_replace('\\', DIRECTORY_SEPARATOR, $this->namespace)
-                        )
+                        'path' => realpath(implode(DIRECTORY_SEPARATOR, [
+                            __DIR__, '..',
+                            str_replace(
+                                '\\',
+                                DIRECTORY_SEPARATOR,
+                                $this->namespace
+                            )
+                        ]))
                     ]))->register();
 
                     printf('Autoload: %s' . PHP_EOL, $this->namespace);
@@ -101,11 +106,17 @@ class Shell extends Factory
 
             $previous_line = false;
 
+            $invoke = (array)$this->invoke;
+
             while(true) {
-                $line = readline(sprintf('%s %s ',
-                    $this->namespace,
-                    $this->prompt
-                ));
+                if ($invoke) {
+                    $line = array_shift($invoke);
+                } else {
+                    $line = readline(sprintf('%s %s ',
+                        $this->namespace,
+                        $this->prompt
+                    ));
+                }
 
                 if (false === $line) {
                     break;
@@ -131,7 +142,7 @@ class Shell extends Factory
                                 $result = $this($line);
 
                                 if (!is_null($result)) {
-                                    var_dump($result);
+                                    print_r($result);
                                 }
                             } catch (\Exception $e) {
                                 echo $e . PHP_EOL;
@@ -147,7 +158,11 @@ class Shell extends Factory
                 readline_write_history($this->history_path);
             }
 
-            echo PHP_EOL;
+            printf("\r%s %s %s\n",
+                $this->namespace,
+                $this->prompt,
+                $this->buy_message
+            );
 
             posix_kill($pid, SIGQUIT);
         }

@@ -16,9 +16,9 @@ autoload: !autoload
 error_handler: !error_handler
 class: NoFramework\Shell
 log: !new Log\Output
-m: !new
+db: !new
   class: Model
-  category: !new \Natly\Model\Category
+invoke: sh fortune | cowsay
 prompt: '>'
 history_path: !local_path .NoFramework_history
 shortcuts:

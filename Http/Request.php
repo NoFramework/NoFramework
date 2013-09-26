@@ -129,7 +129,7 @@ class Request extends Url
         } else {
             trigger_error(
                 sprintf('Call to undefined method %s::%s.',
-                get_called_class(),
+                static::class,
                 $property), 
             E_USER_ERROR);
         }

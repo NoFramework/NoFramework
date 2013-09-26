@@ -216,16 +216,16 @@ class Config
             if (isset($state['path']) and
                 0 !== strpos($state['path'], DIRECTORY_SEPARATOR)
             ) {
-                $state['path'] = realpath(
-                    __DIR__ . DIRECTORY_SEPARATOR . '..' .
-                    DIRECTORY_SEPARATOR . $state['path']
-                );
+                $state['path'] = realpath(implode(DIRECTORY_SEPARATOR, [
+                    __DIR__, '..', $state['path']
+                ]));
             }
 
             if (!class_exists($class, false)) {
-                require __DIR__ . DIRECTORY_SEPARATOR .
-                '..' . DIRECTORY_SEPARATOR .
-                str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php';
+                require implode(DIRECTORY_SEPARATOR, [
+                    __DIR__, '..',
+                    str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php'
+                ]);
             }
 
             $return[] = (new $class($state))->register();

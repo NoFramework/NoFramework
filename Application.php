@@ -17,7 +17,7 @@ class Application
     {
         trigger_error(sprintf(
             '%s::%s is not implemented',
-            get_called_class(),
+            static::class,
             __FUNCTION__
         ), E_USER_WARNING);
     }

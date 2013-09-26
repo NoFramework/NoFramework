@@ -9,25 +9,42 @@
 
 namespace NoFramework\Storage;
 
-class Mongo implements \NoFramework\Storage
+class Mongo
 {
     use \NoFramework\MagicProperties;
+    use Command;
 
-    protected $username = false;
+    protected $user = false;
     protected $password = false;
     protected $host = \MongoClient::DEFAULT_HOST;
-    protected $database = 'test';
+    protected $name = 'test';
     protected $read_preference = \MongoClient::RP_PRIMARY_PREFERRED;
     protected $read_preference_tags = [];
+    protected $is_connect = false;
     protected $write_concern = 1;
+
+    /**
+     * connectTimeoutMS
+     * fsync
+     * journal
+     * replicaSet
+     * socketTimeoutMS
+     * ssl
+     * wTimeoutMS
+     */
     protected $options = [];
+
+    protected function __property_auth_name()
+    {
+        return $this->name;
+    }
 
     protected function __property_connection()
     {
         $auth = [];
 
-        if (false !== $this->username) {
-            $auth['username'] = $this->username;
+        if (false !== $this->user) {
+            $auth['username'] = $this->user;
         }
 
         if (false !== $this->password) {
@@ -36,46 +53,102 @@ class Mongo implements \NoFramework\Storage
 
         return new \MongoClient(
             'mongodb://' . implode(',', (array)$this->host),
-            array_merge([
-                'connect' => true,
-                'db' => $this->database,
-                'readPreference' => $this->read_preference,
-                'readPreferenceTags' => $this->read_preference_tags,
-                'w' => $this->write_concern,
-            ], $auth, $this->options)
+            array_merge(
+                $auth,
+                [
+                    'connect' => $this->is_connect,
+                    'w' => $this->write_concern,
+                    'db' => $this->auth_name,
+                    'readPreference' => $this->read_preference,
+                    'readPreferenceTags' => $this->read_preference_tags,
+                ],
+                array_intersect_key(
+                    $this->options,
+                    array_flip([
+                        'connectTimeoutMS',
+                        'fsync',
+                        'journal',
+                        'replicaSet',
+                        'socketTimeoutMS',
+                        'ssl',
+                        'wTimeoutMS',
+                    ])
+                )
+            )
         );
     }
 
     protected function __property_db()
     {
-        return $this->connection->selectDB($this->database);
+        return $this->connection->selectDB($this->name);
     }
 
-    public function find($collection, $where = [], $fields = [], $sort = [],
-        $skip = 0, $limit = 0, $options = [])
+    protected function __command($command)
     {
-        $option = function ($option) use ($options) {
-            return isset($options[$option]) ? $options[$option] : null;
-        };
+        $return = $this->db->command($command);
 
-        $cursor = $this->db->selectCollection($collection)->find(
-            $this->normalizeWhere($where),
-            $fields
+        if (isset($return['errmsg'])) {
+            throw new \MongoException($return['errmsg']);
+        }
+
+        return array_merge(
+            isset($return['lastErrorObject'])
+            ? $return['lastErrorObject']
+            : [],
+            array_diff_key(
+                $return,
+                ['lastErrorObject' => 0]
+            )
+        );
+    }
+
+    protected function __command_collection($collection)
+    {
+        return $this->db->selectCollection($collection);
+    }
+
+    /**
+     * options:
+     *   where
+     *   fields
+     *   sort
+     *   skip
+     *   limit
+     *   hint
+     *   is_tailable
+     *   is_immortal
+     *   is_await_data
+     *   is_partial
+     *   is_exhaust
+     *   is_snapshot
+     *   timeout
+     *   batch_size
+     *   read_preference
+     *   read_preference_tags
+     *
+     * return:
+     *   MongoCursor
+     */
+    protected function __command_find($collection, $option)
+    {
+        $cursor = $this->collection($collection)->find(
+            $option('where', []),
+            $option('fields', [])
         );
 
-        if ($sort) {
+        if ($sort = $option('sort')) {
             $cursor->sort($sort);
         }
 
-        if ($skip) {
+        if ($skip = $option('skip')) {
             $cursor->skip($skip);
         }
 
-        if ($limit) {
+        if ($limit = $option('limit')) {
             $cursor->limit($limit);
         }
 
-        if ($index = $option('index')) {
+        if ($index = $option('hint')) {
             $cursor->hint($index);
         }
 
@@ -124,323 +197,367 @@ class Mongo implements \NoFramework\Storage
         return $cursor;
     }
 
-    public function count($collection, $where = [], $options = [])
+    /**
+     * options:
+     *   where
+     *   skip
+     *   limit
+     *
+     * return:
+     *   int
+     */
+    protected function __command_count($collection, $option)
     {
-        $option = function ($option) use ($options) {
-            return isset($options[$option]) ? $options[$option] : null;
-        };
-
-        $return = $this->db->selectCollection($collection)->count(
-            $this->normalizeWhere($where),
-            $option('limit'),
-            $option('skip')
-        );
-
-        return $return;
-    }
-
-    public function update($collection, $set, $where = [], $options = [])
-    {
-        $option = function ($option) use ($options) {
-            return isset($options[$option]) ? $options[$option] : null;
-        };
-
-        $is_replace = true;
-
-        foreach ($set as $operation => $ignored) {
-            if (0 === strpos($operation, '$')) {
-                $is_replace = false;
-                break;
-            }
-        }
-
-        if ($is_replace and !$option('is_replace')) {
-            $set = ['$set' => $set];
-            $is_replace = false;
-        }
-
-        unset($options['is_replace']);
-
-        return $this->db->selectCollection($collection)->update(
-            $this->normalizeWhere($where),
-            $set,
-            array_merge([
-                'w' => $this->write_concern,
-                'multiple' => !$is_replace,
-            ], $options)
+        return $this->db->selectCollection($collection)->count(
+            $option('where', []),
+            $option('limit', 0),
+            $option('skip', 0)
         );
     }
 
-    public function remove($collection, $where = [], $fields = [],
-        $options = [])
+    /**
+     * options:
+     *   field
+     *   where
+     *
+     * return:
+     *   array of distinct values
+     */
+    protected function __command_distinct($collection, $option)
     {
-        $multiple = isset($options['multiple']) ? $options['multiple'] : true;
-        unset($options['multiple']);
+        return $this->__command([
+            'distinct' => $collection,
+            'key' => $option('field'),
+            'query' => $option('where', [])
+        ])['values'];
+    }
 
-        if ($fields) {
-            return $this->update(
-                $collection,
-                ['$unset' => array_fill_keys((array)$fields, true)],
-                $where,
-                array_merge(compact('multiple'), $options)
+    protected function writeOptions($option)
+    {
+        return $option([
+            'w',
+            'fsync',
+            'j',
+            'wtimeout',
+            'timeout',
+        ]);
+    }
+
+    /**
+     * options:
+     *   set
+     *   continueOnError
+     *   writeOptions
+     *
+     * return:
+     *   inserted object(s)
+     */
+    protected function __command_insert($collection, $option)
+    {
+        $set = $option('set');
+
+        if (is_array($set) and array_keys($set) === range(0, count($set) - 1)) {
+            $this->collection($collection)->batchInsert(
+                $set,
+                array_merge(
+                    ['continueOnError' => $option('continueOnError', true)],
+                    $this->writeOptions($option)
+                )
             );
         } else {
-            return $this->db->selectCollection($collection)->remove(
-                $this->normalizeWhere($where),
-                array_merge([
-                    'w' => $this->write_concern,
-                    'justOne' => !$multiple
-                ], $options)
+            $this->collection($collection)->insert(
+                $set,
+                $this->writeOptions($option)
             );
         }
+
+        return $set;
     }
 
-    public function insert($collection, $set, $options = [])
+    /**
+     * options:
+     *   where
+     *   is_multiple
+     *   is_isolated
+     *   writeOptions
+     *
+     * return:
+     *   removed count
+     */
+    protected function __command_remove($collection, $option)
     {
-        $return = $this->db->selectCollection($collection)->insert(
-            $set,
-            array_merge([
-                'w' => $this->write_concern,
-            ], $options)
-        );
+        $where = $option('where', []);
+        $is_multiple = $option('is_multiple', true);
 
-        $return['updatedExisting'] = false;
-        $return['n'] = 1;
-
-        if (isset($set['_id'])) {
-            $return['upserted'] = $set['_id'];
+        if ($option('is_isolated') and $is_multiple) {
+            $where['$isolated'] = 1;
         }
 
-        return $return;
+        return $this->collection($collection)->remove(
+            $where,
+            array_merge([
+                'justOne' => !$is_multiple
+            ], $this->writeOptions($option))
+        )['n'];
     }
 
-    public function insertIgnore($collection, $set, $key = [], $options = [])
+    /**
+     * options:
+     *   set
+     *   inc
+     *   rename
+     *   setOnInsert
+     *   unset
+     *   bit
+     *   addToSet
+     *   pop
+     *   pullAll
+     *   pull
+     *   pushAll
+     *   push
+     *   where
+     *   is_upsert
+     *   is_multiple
+     *   is_isolated
+     *   writeOptions
+     *
+     * return:
+     *   n
+     *   connectionId
+     *   err
+     *   ok
+     *   updatedExisting
+     *   upserted
+     */
+    protected function __command_update($collection, $option)
     {
-        $this->splitKey($set, $key);
-
-        $return = $this->update(
-            $collection,
-            ['$setOnInsert' => $set ?: $key],
-            $key,
-            array_merge([
-                'upsert' => true,
-                'multiple' => false
-            ], $options)
-        );
-
-        $return['key'] = $key;
-        $return['updatedExisting'] = false;
-
-        if (!isset($return['upserted'])) {
-            $return['n'] = 0;
+        $command = [];
+        
+        foreach ($option([
+            'inc',
+            'rename',
+            'setOnInsert',
+            'set',
+            'unset',
+            'bit',
+            'addToSet',
+            'pop',
+            'pullAll',
+            'pull',
+            'pushAll',
+            'push'
+        ]) as $key => $value) {
+            $command['$' . $key] = $value;
         }
 
-        return $return;
-    }
+        $where = $option('where', []);
+        $is_multiple = $option('is_multiple', true);
 
-    public function insertOrReplace($collection, $set, $key = [],
-        $options = [])
-    {
-        $this->splitKey($set, $key, false);
+        if ($option('is_isolated') and $is_multiple) {
+            $where['$isolated'] = 1;
+        }
 
-        $return = $this->update(
-            $collection,
-            $set,
-            $key,
+        return $this->collection($collection)->update(
+            $where,
+            $command,
             array_merge([
-                'upsert' => true,
-                'is_replace' => true,
-            ], $options)
+                'upsert' => $option('is_upsert', false),
+                'multiple' => $is_multiple,
+            ], $this->writeOptions($option))
         );
-
-        $return['key'] = $key;
-
-        return $return;
     }
 
-    public function replaceExisting($collection, $set, $key = [],
-        $options = [])
+    /**
+     * options:
+     *   set
+     *   inc
+     *   rename
+     *   setOnInsert
+     *   unset
+     *   bit
+     *   addToSet
+     *   pop
+     *   pull
+     *   push
+     *   where
+     *   is_upsert
+     *   timeout
+     *   is_new
+     *   fields
+     *   sort
+     *
+     * return:
+     *   n
+     *   connectionId
+     *   err
+     *   ok
+     *   updatedExisting
+     *   upserted
+     *   value
+     */
+    protected function __command_findAndModify($collection, $option)
     {
-        $this->splitKey($set, $key, false);
+        $command = [];
+        
+        foreach ($option([
+            'inc',
+            'rename',
+            'setOnInsert',
+            'set',
+            'unset',
+            'bit',
+            'addToSet',
+            'pop',
+            'pull',
+            'push'
+        ]) as $key => $value) {
+            $command['$' . $key] = $value;
+        }
 
-        $return = $this->update(
-            $collection,
-            $set,
-            $key,
+        return $this->__command(
             array_merge([
-                'is_replace' => true,
-            ], $options)
+                'findAndModify' => $collection,
+                'query' => $option('where', []),
+                'update' => $command,
+                'new' => $option('is_new', true),
+                'upsert' => $option('is_upsert')
+            ], $option([
+                'sort',
+                'fields'
+            ])),
+            $option([
+                'timeout'
+            ])
         );
-
-        $return['key'] = $key;
-
-        return $return;
     }
 
-    public function insertOrUpdate($collection, $set, $key = [],
-        $insert_only = [], $options = [])
+    /**
+     * options:
+     *   set
+     *   where
+     *   is_upsert
+     *   is_multiple
+     *   is_isolated
+     *   writeOptions
+     *
+     * return:
+     *   n
+     *   connectionId
+     *   err
+     *   ok
+     *   updatedExisting
+     *   upserted
+     */
+    protected function __command_replace($collection, $option)
     {
-        $this->splitKey($set, $key);
+        $set = $option('set', []);
 
-        $setOnInsert = [];
-        foreach ($insert_only as $field) {
-            if (isset($set[$field])) {
-                $setOnInsert[$field] = $set[$field];
-                unset($set[$field]);
+        foreach ($set as $field => $value) {
+            if (0 === strpos($field, '$')) {
+                throw new \MongoCursorException(
+                    'document to replace can\'t have $ fields'
+                );
             }
         }
 
-        $operation = [];
+        $where = $option('where', []);
+        $is_multiple = $option('is_multiple', true);
 
-        if ($set) {
-            $operation['$set'] = $set;
+        if ($option('is_isolated') and $is_multiple) {
+            $where['$isolated'] = 1;
         }
 
-        if ($setOnInsert) {
-            $operation['$setOnInsert'] = $setOnInsert;
-        }
-
-        if (!$operation) {
-            $operation['$setOnInsert'] = $key;
-        }
-
-        $return = $this->update(
-            $collection,
-            $operation,
-            $key,
+        return $this->collection($collection)->update(
+            $where,
+            $set,
             array_merge([
-                'upsert' => true,
-                'multiple' => false
-            ], $options)
+                'upsert' => $option('is_upsert', false),
+                'multiple' => $is_multiple,
+            ], $this->writeOptions($option))
         );
+    }
 
-        $return['key'] = $key;
+    /**
+     * options:
+     *   set
+     *   where
+     *   is_upsert
+     *   timeout
+     *   is_new
+     *   fields
+     *   sort
+     *
+     * return:
+     *   n
+     *   connectionId
+     *   err
+     *   ok
+     *   updatedExisting
+     *   upserted
+     *   value
+     */
+    protected function __command_findAndReplace($collection, $option)
+    {
+        $set = $option('set', []);
 
-        if (!isset($operation['$set'])) {
-            $return['updatedExisting'] = false;
-
-            if (!isset($return['upserted'])) {
-                $return['n'] = 0;
+        foreach ($set as $field => $value) {
+            if (0 === strpos($field, '$')) {
+                throw new \MongoCursorException(
+                    'document to replace can\'t have $ fields'
+                );
             }
         }
 
-        return $return;
-    }
-
-    public function updateExisting($collection, $set, $key = [], $options = [])
-    {
-        $this->splitKey($set, $key);
-
-        if (!$set) {
-            throw new \InvalidArgumentException('Nothing to set');
-        }
-
-        $return = $this->update(
-            $collection,
-            $set,
-            $key,
+        return $this->__command(
             array_merge([
-                'multiple' => false
-            ], $options)
+                'findAndModify' => $collection,
+                'query' => $option('where', []),
+                'update' => $set,
+                'new' => $option('is_new', true),
+                'upsert' => $option('is_upsert')
+            ], $option([
+                'sort',
+                'fields'
+            ])),
+            $option([
+                'timeout'
+            ])
         );
-
-        $return['key'] = $key;
-
-        return $return;
     }
 
-    public function drop($collection, $options = [])
-    {
-        return $this->db->dropCollection($collection);
-    }
-
-    public function fromUnixTimestamp($timestamp)
-    {
-        return new \MongoDate($timestamp);
-    }
-
-    public function toUnixTimestamp($timestamp)
-    {
-        return $timestamp->sec;
-    }
-
-    public function ensureIndex($collection, $key, $options = [])
+    /**
+     * options:
+     *   key
+     *   w
+     *   unique
+     *   dropDups
+     *   sparse
+     *   expireAfterSeconds
+     *   background
+     *   name
+     *   timeout
+     *
+     * return:
+     *   n
+     *   connectionId
+     *   err
+     *   ok
+     */
+    protected function __command_ensureIndex($collection, $option)
     {
         return $this->db->selectCollection($collection)->ensureIndex(
-            $key,
-            array_merge([
-                'w' => $this->write_concern,
-            ], $options)
+            $option('key'),
+            $option([
+                'w',
+                'unique',
+                'dropDups',
+                'sparse',
+                'expireAfterSeconds',
+                'background',
+                'name',
+                'timeout'
+            ])
         );
-    }
-
-    protected function normalizeWhere($where)
-    {
-        $return = [];
-
-        foreach ((array)$where as $field => $value) {
-            if (is_array($value)
-                and array_keys($value) === range(0, count($value) - 1)) {
-                $value = ['$in' => $value];
-
-            } elseif (is_array($value)) {
-                foreach ($value as $collation => $collation_value) {
-                    switch ($collation) {
-                        case '=':
-                            $value = $collation_value;
-                            break 2;
-                        case '<':
-                            unset($value[$collation]);
-                            $value['$lt'] = $collation_value;
-                            break;
-                        case '>':
-                            unset($value[$collation]);
-                            $value['$gt'] = $collation_value;
-                            break;
-                        case '<=':
-                            unset($value[$collation]);
-                            $value['$lte'] = $collation_value;
-                            break;
-                        case '>=':
-                            unset($value[$collation]);
-                            $value['$gte'] = $collation_value;
-                            break;
-                        case '<>':
-                            unset($value[$collation]);
-                            $value['$ne'] = $collation_value;
-                            break;
-                    }
-                }
-            }
-
-            $return[$field] = $value;
-        }
-
-        return $return;
-    }
-
-    protected function splitKey(&$set, &$key, $is_unset = true)
-    {
-        $fields = (array)$key ?: ['_id'];
-        $key = isset($set['_id'])
-            ? ['_id' => $set['_id']]
-            : [];
-
-        foreach ($fields as $field) {
-            if (!isset($set[$field])) {
-                throw new \InvalidArgumentException(sprintf(
-                    'Field \'%s\' is not set for set %s',
-                    $field,
-                    print_r($set, true)
-                ));
-            }
-
-            $key[$field] = $set[$field];
-
-            if ($is_unset) {
-                unset($set[$field]);
-            }
-        }
     }
 }
 

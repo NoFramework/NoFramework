@@ -28,7 +28,7 @@ trait MagicProperties
 
         } else {
             trigger_error(sprintf('Cannot read property %s::$%s',
-                get_called_class(),
+                static::class,
                 $property
             ), E_USER_ERROR);
         }
@@ -44,7 +44,7 @@ trait MagicProperties
 
         } else {
             trigger_error(sprintf('Cannot write property %s::$%s',
-                get_called_class(),
+                static::class,
                 $property
             ), E_USER_ERROR);
         }
@@ -57,7 +57,7 @@ trait MagicProperties
 
         } else {
             trigger_error(sprintf('Cannot remove property %s::$%s',
-                get_called_class(),
+                static::class,
                 $property
             ), E_USER_ERROR);
         }

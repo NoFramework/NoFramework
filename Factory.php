@@ -227,15 +227,18 @@ class Factory implements \ArrayAccess
               : ($this->namespace ? $this->namespace . '\\' : '')
                     . $state['class']
             )
-            : get_called_class()
+            : static::class
         );
 
         $class->instance = $class->newInstanceWithoutConstructor();
 
         unset($state['class']);
 
+        $last_id = (array)$id;
+        $last_id = array_pop($last_id);
+
         foreach ((array)$this->propagate as $property) {
-            if (!isset($state[$property])) {
+            if (!isset($state[$property]) and $property !== $last_id) {
                 $state[$property] = $this->$property;
             }
         }
