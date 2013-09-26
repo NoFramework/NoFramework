@@ -9,7 +9,7 @@
 
 namespace NoFramework\Log;
 
-class Output extends \NoFramework\Log
+class Output extends Base
 {
     protected function onWrite($message, $type)
     {

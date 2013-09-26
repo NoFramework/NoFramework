@@ -9,7 +9,7 @@
 
 namespace NoFramework\Render; 
 
-class Smarty extends \NoFramework\Render
+class Smarty extends Base
 {
     public $template;
     public $cache_path = false;

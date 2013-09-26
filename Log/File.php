@@ -9,7 +9,7 @@
 
 namespace NoFramework\Log;
 
-class File extends \NoFramework\Log
+class File extends Base
 {
     use \NoFramework\MagicProperties;
 

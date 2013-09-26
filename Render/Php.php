@@ -10,7 +10,7 @@
 namespace NoFramework\Render; 
 use \NoFramework\File\Path;
 
-class Php extends \NoFramework\Render
+class Php extends Base
 {
     public $template;
     public $extension = 'html';

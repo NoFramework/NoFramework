@@ -9,7 +9,7 @@
 
 namespace NoFramework\Render;
 
-class Twig extends \NoFramework\Render
+class Twig extends Base
 {
     public $template;
     public $extension = 'html';

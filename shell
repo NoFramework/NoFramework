@@ -6,36 +6,31 @@ NoFramework\Config::shell(__FILE__, __COMPILER_HALT_OFFSET__)->start();
 __halt_compiler();
 
 ini_set: !ini_set
-  opcache.revalidate_freq: 0
   date.timezone: UTC
-
-autoload: !autoload
-  - NoFramework
-  - Natly
-
+autoload: !autoload NoFramework
 error_handler: !error_handler
 class: NoFramework\Shell
 log: !new Log\Output
-db: !new
-  class: Model
+db: !new Model
 invoke: sh fortune | cowsay
 prompt: '>'
 history_path: !local_path .NoFramework_history
 shortcuts:
-  - from: '`'
-    to: '$this->'
-
-  - from: '`{'
-    to: 'function () {'
-
-  - from: '`('
-    to: '$this('
-
-  - from: '``('
-    to: '$this->newInstance('
+  - from: '#(.+)>$#'
+    to: 'return \1'
 
   - from: '#`(\d+)#'
     to: 'func_get_arg(\1)'
 
-  - from: '#(.+)>$#'
-    to: 'return \1'
+  - from: '``('
+    to: '$this->newInstance('
+
+  - from: '`('
+    to: '$this('
+
+  - from: '`{'
+    to: 'function () {'
+
+  - from: '`'
+    to: '$this->'
+

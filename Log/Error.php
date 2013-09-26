@@ -9,7 +9,7 @@
 
 namespace NoFramework\Log;
 
-class Error extends \NoFramework\Log
+class Error extends Base
 {
     protected $message_type = 0;
     protected $destination;

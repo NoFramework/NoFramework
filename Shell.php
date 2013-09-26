@@ -46,7 +46,7 @@ class Shell extends Factory
                 }
 
             } else {
-                foreach (array_reverse($this->shortcuts) as $replace) {
+                foreach ($this->shortcuts as $replace) {
                     $code = 0 === strpos($replace['from'], '#')
                         ? preg_replace($replace['from'], $replace['to'], $code)
                         : str_replace($replace['from'], $replace['to'], $code);

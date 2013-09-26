@@ -7,9 +7,9 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework;
+namespace NoFramework\Log;
 
-abstract class Log
+abstract class Base
 {
     protected $type_filter = false;
 

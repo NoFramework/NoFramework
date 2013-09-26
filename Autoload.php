@@ -75,12 +75,10 @@ class Autoload
         return $this;
     }
 
-    public static function find($namespace = false)
+    public static function find()
     {
         foreach ((array)spl_autoload_functions() as $autoload) {
-            if ($autoload instanceof self and (
-                !$namespace or in_array($autoload->namespace, (array)$namespace)
-            )){
+            if ($autoload instanceof self) {
                 yield $autoload->namespace => $autoload;
             }
         }

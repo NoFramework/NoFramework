@@ -9,7 +9,7 @@
 
 namespace NoFramework\Log;
 
-class Nil extends \NoFramework\Log
+class Nil extends Base
 {
     protected function onWrite($message, $type) {}
 }

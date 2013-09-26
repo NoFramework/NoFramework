@@ -9,7 +9,7 @@
 
 namespace NoFramework\Render;
 
-class Json extends \NoFramework\Render
+class Json extends Base
 {
     public $hex_quot = false;
     public $hex_tag = false;

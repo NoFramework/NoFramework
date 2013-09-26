@@ -7,11 +7,11 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework;
+namespace NoFramework\Render;
 
-abstract class Render
+abstract class Base
 {
-    use MagicProperties;
+    use \NoFramework\MagicProperties;
 
     abstract public function __invoke($data);
 }

@@ -137,21 +137,19 @@ class Magic
         return mt_rand(0, 100);
     }
 
-    # 5.5
-    #protected function __property_emitter()
-    #{
-    #    while (true) {
-    #        yield mt_rand(0, 100);
-    #    }
-    #}
+    protected function __property_emitter()
+    {
+        while (true) {
+            yield mt_rand(0, 100);
+        }
+    }
 
-    # 5.5
-    #protected function __property_acceptor()
-    #{
-    #    foreach (yield as $rand) {
-    #        echo $rand . PHP_EOL;
-    #    }
-    #}
+    protected function __property_acceptor()
+    {
+        foreach (yield as $rand) {
+            echo $rand . PHP_EOL;
+        }
+    }
 }
 
 class Application extends \NoFramework\Application
@@ -184,12 +182,13 @@ class Application extends \NoFramework\Application
         $this->log->file
         -> write($this->injected_object->getMagic()->memo);
 
+        #/*
         while (true) {
             $this->log->output
             -> write($this->injected_object->getMagic()->rand);
         }
+        #*/
 
-        # 5.5
         #$m = $this->injected_object->getMagic();
         #$m->acceptor->send($m->emitter);
     }
