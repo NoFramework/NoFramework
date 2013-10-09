@@ -12,7 +12,7 @@ error_handler: !error_handler
 class: NoFramework\Shell
 log: !new Log\Output
 db: !new Model
-invoke: sh fortune | cowsay
+#invoke: sh fortune | cowsay
 prompt: '>'
 history_path: !local_path .NoFramework_history
 shortcuts:
