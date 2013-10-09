@@ -9,8 +9,10 @@
 
 namespace NoFramework\Http;
 
-abstract class Application extends \NoFramework\Application
+abstract class Application
 {
+    use \NoFramework\MagicProperties;
+
     protected function __property_request()
     {
         return new Request;

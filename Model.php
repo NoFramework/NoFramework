@@ -18,7 +18,7 @@ class Model extends Factory
 
     protected function __property_storage()
     {
-        return new Storage\Mongo;
+        return new \NoFramework\Storage\Mongo;
     }
 
     protected function __operator_new($state = null, $id = null)

@@ -9,8 +9,10 @@
 
 namespace NoFramework\Service;
 
-class Application extends \NoFramework\Application
+class Application
 {
+    use \NoFramework\MagicProperties;
+
     protected $pidfile;
     protected $timeout = 3600;
     protected $action;
@@ -46,12 +48,12 @@ class Application extends \NoFramework\Application
 
             if (!$pidfile->check($this->timeout)) {
                 $pidfile->write();
-                $result = parent::start($main);
+                $result = $this->main();
                 $pidfile->delete();
                 return $result;
             }
         } else {
-            return parent::start($main);
+            return $this->main();
         }
     }
 }

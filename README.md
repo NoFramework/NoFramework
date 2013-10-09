@@ -64,11 +64,8 @@ require '/path/to/NoFramework/Autoload.php';
 
 (new Factory([
     'namespace' => __NAMESPACE__,
-    'app' => ['$new' => [
-        'class' => 'Application',
-        'log' => ['$new' => 'Log\Output']
-    ]]
-]))->app->start(function ($app) {
+    'log' => ['$new' => 'Log\Output']
+]))->with(function ($app) {
     $app->log->write('ok');
 });
 ```

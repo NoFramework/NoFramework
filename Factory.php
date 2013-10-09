@@ -16,8 +16,6 @@ class Factory implements \ArrayAccess
         getMagicProperty as getMagicPropertyCallback;
     }
 
-    use With;
-
     protected $namespace;
     protected $propagate;
     protected $local_reuse;
@@ -51,6 +49,12 @@ class Factory implements \ArrayAccess
         if (!isset(self::$root[$this->id[0]])) {
             self::$root[$this->id[0]] = $this;
         }
+    }
+
+    public function with($closure)
+    {
+        $closure($this);
+        return $this;
     }
 
     public function newInstance($state = null, $id = null)
