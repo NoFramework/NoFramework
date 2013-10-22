@@ -27,10 +27,7 @@ class Factory implements \ArrayAccess
     public function __construct($state = null, $id = null)
     {
         foreach ((array)$state as $property => $value) {
-            if ('id' === $property) {
-                trigger_error('Cannot set id', E_USER_WARNING);
-
-            } elseif (property_exists($this, $property)) {
+            if ('id' !== $property and property_exists($this, $property)) {
                 if ($this->getOperator($value)) {
                     unset($this->$property);
                 } else {
