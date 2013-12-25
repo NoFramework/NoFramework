@@ -25,7 +25,7 @@ class Model extends Factory
     {
         $object = parent::__operator_new($state, $id);
 
-        if ($object instanceof self) {
+        if ($object instanceof self and !$object->name) {
             $name = (array)$id;
             $object->name = $this->name ? $this->name . $this->separator : '';
             $object->name .= array_pop($name);
