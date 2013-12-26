@@ -106,6 +106,27 @@ class Factory implements \ArrayAccess
         unset(self::$root[$this->id[0]]);
     }
 
+    public function parent()
+    {
+        $id = $this->id;
+        array_pop($id);
+
+        if ($id) {
+            $return = self::$root[array_shift($id)];
+
+            foreach ($id as $property) {
+                $return = $return->$property;
+            }
+
+            return $return;
+        } else {
+            trigger_error(sprintf(
+                'No parent for %s',
+                implode('.', $this->id)
+            ), E_USER_NOTICE);
+        }
+    }
+
     public static function __callStatic($id, $parameter)
     {
         if (!isset(self::$root[$id])) {
