@@ -119,13 +119,18 @@ class Request extends Url
             : false;
     }
 
+    public function any($field, $default = null)
+    {
+        return $this->post($field) ?: $this->query($field, $default);
+    }
+
     public function __call($property, $parameter) {
         if (in_array($property, ['query', 'post', 'cookie', 'files'])) {
             $property = $this->$property;
 
             return isset($property[$parameter[0]])
                 ? $property[$parameter[0]]
-                : null;
+                : (isset($parameter[1]) ? $parameter[1] : null);
         } else {
             trigger_error(
                 sprintf('Call to undefined method %s::%s.',
