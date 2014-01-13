@@ -121,7 +121,7 @@ class Request extends Url
 
     public function any($field, $default = null)
     {
-        return $this->post($field) ?: $this->query($field, $default);
+        return $this->post($field, $this->query($field, $default));
     }
 
     public function __call($property, $parameter) {
