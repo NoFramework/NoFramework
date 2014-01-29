@@ -11,6 +11,15 @@ namespace NoFramework\Http;
 
 class Request extends Url
 {
+    public function __construct($state = [])
+    {
+        if (isset($state['url'])) {
+             $state = array_merge($state, $this->splitUrl($state['url']));
+        }
+
+        $this->__property = $state;
+    }
+
     protected function __property_method()
     {
         return
