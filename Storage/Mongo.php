@@ -559,5 +559,15 @@ class Mongo
             ])
         );
     }
+
+    protected function __command_listCollections()
+    {
+        return array_map(
+            function ($collection) {
+                return $collection->getName();
+            },
+            $this->db->listCollections()
+        );
+    }
 }
 
