@@ -83,6 +83,11 @@ class Mongo
         return $this->connection->selectDB($this->name);
     }
 
+    public function getName()
+    {
+        return $this->name;
+    }
+
     protected function __command($command)
     {
         $return = $this->db->command($command);
