@@ -59,7 +59,7 @@ class Factory implements \ArrayAccess
         if (!$id) {
             $object = $this->__operator_new($state);
 
-        } elseif (!isset($this->$id)) {
+        } elseif (!isset($this->__property[$id])) {
             $this['$unresolved'][$id] = ['$new' => $state];
             $object = $this->$id;
 
@@ -75,8 +75,7 @@ class Factory implements \ArrayAccess
 
     public function offsetExists($property)
     {
-        return isset($this->__property[$property])
-            or $this->isMagicProperty($property);
+        return isset($this->$property);
     }
 
     public function &offsetGet($property)
@@ -125,6 +124,11 @@ class Factory implements \ArrayAccess
                 implode('.', $this->id)
             ), E_USER_NOTICE);
         }
+    }
+
+    public function reuse($value)
+    {
+        return $this->__operator_reuse($value);
     }
 
     public static function __callStatic($id, $parameter)

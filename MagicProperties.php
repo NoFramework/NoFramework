@@ -15,7 +15,7 @@ trait MagicProperties
 
     public function __isset($property)
     {
-        return isset($this->__property[$property]);
+        return isset($this->__property[$property]) or $this->isMagicProperty($property);
     }
 
     public function __get($property)
@@ -78,6 +78,14 @@ trait MagicProperties
         } else {
             $ttl = false;
             $value = $this->{'__property_' . $property}($ttl);
+
+            if (is_null($value)) {
+                trigger_error(sprintf(
+                    '%s::__property_%s() returned null',
+                    static::class,
+                    $property
+                ), E_USER_ERROR);
+            }
 
             if (false === $ttl) {
                 $this->__property[$property] = $value;

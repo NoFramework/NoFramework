@@ -115,9 +115,15 @@ class Config
         return $value;
     }
 
-    public function __parse_setTimeLimit($value, $tag, $flags)
+    public function __parse_time_limit($value, $tag, $flags)
     {
         set_time_limit($value);
+        return $value;
+    }
+
+    public function __parse_locale($value, $tag, $flags)
+    {
+        setlocale(LC_ALL, $value);
         return $value;
     }
 

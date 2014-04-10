@@ -9,128 +9,155 @@
 
 namespace NoFramework\Http;
 
-class Request extends Url
+class Request extends \ArrayObject
 {
+    protected $url;
+    protected $base_url;
+    protected $query_string;
+    protected $path_split;
+    protected $method;
+
+    protected $scheme = '';
+    protected $host = 'localhost';
+    protected $port = 80;
+    protected $path = '/';
+    protected $query = [];
+
+    protected $post = [];
+    protected $cookie = [];
+    protected $files = [];
+    protected $referer = false;
+    protected $ip = '127.0.0.1';
+    protected $user_agent = false;
+
+    /**
+     * state (setable):
+     *   url
+     *   method
+     *   post
+     *   cookie
+     *   files
+     *   referer
+     *   ip
+     *   user_agent
+     *
+     * calculated from url (not setable):
+     *   base_url
+     *   scheme
+     *   host
+     *   port
+     *   path
+     *   path_split
+     *   query
+     *   query_string
+     */
     public function __construct($state = [])
     {
-        if (isset($state['url'])) {
-             $state = array_merge($state, $this->splitUrl($state['url']));
+        if (is_string($state)) {
+            $state = ['url' => $state];
         }
 
-        $this->__property = $state;
-    }
+        $is_parse_query = true;
 
-    protected function __property_method()
-    {
-        return
-            isset($_SERVER['REQUEST_METHOD'])
-            ? substr($_SERVER['REQUEST_METHOD'], 0, 7)
-            : 'GET';
-    }
+        if (!isset($state['url'])) {
+            $state['url'] = sprintf(
+                '%s://%s%s',
 
-    protected function __property_scheme()
-    {
-            if (isset($_SERVER['SERVER_PROTOCOL'])
-            and false !== strpos(
-                strtolower($_SERVER['SERVER_PROTOCOL']),
-                'https'
-            )) {
-                return 'https';
-            }
+                (isset($_SERVER['SERVER_PROTOCOL']) and false !== strpos(strtolower($_SERVER['SERVER_PROTOCOL']), 'https'))
+                ? 'https'
+                : 'http',
 
-            if (isset($this->base_url) or isset($this->url)) {
-                return parent::__property_scheme();
-            }
+                isset($_SERVER['HTTP_X_FORWARDED_HOST'])
+                ? $_SERVER['HTTP_X_FORWARDED_HOST']
+                : (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost'),
 
-            return 'http';
-    }
+                isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/'
+            );
 
-    protected function __property_host_port()
-    {
-        if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-            return $_SERVER['HTTP_X_FORWARDED_HOST'];
+            $is_parse_query = false;
         }
 
-        if (isset($_SERVER['HTTP_HOST'])) {
-            return $_SERVER['HTTP_HOST'];
+        $state = array_merge(
+            [
+                'method' =>
+                    isset($_SERVER['REQUEST_METHOD'])
+                    ? substr($_SERVER['REQUEST_METHOD'], 0, 7)
+                    : 'GET'
+                ,
+                'post' => isset($_POST) ? $_POST : [],
+                'cookie' => isset($_COOKIE) ? $_COOKIE : [],
+                'files' => isset($_FILES) ? $_FILES : [],
+                'referer' =>
+                    isset($_SERVER['HTTP_REFERER'])
+                    ? $_SERVER['HTTP_REFERER']
+                    : false
+                ,
+                'ip' =>
+                    isset($_SERVER['REMOTE_ADDR'])
+                    ? $_SERVER['REMOTE_ADDR']
+                    : '127.0.0.1'
+                ,
+                'user_agent' =>
+                    isset($_SERVER['HTTP_USER_AGENT'])
+                    ? $_SERVER['HTTP_USER_AGENT']
+                    : false,
+            ],
+            array_intersect_key($state, array_flip([
+                'url',
+                'method',
+                'post',
+                'cookie',
+                'files',
+                'referer',
+                'ip',
+                'user_agent',
+            ])),
+            parse_url($state['url'])
+        );
+
+        foreach ($state as $property => $value) {
+            $this->$property = $value;
         }
 
-        if (isset($this->base_url) or isset($this->url)) {
-            return parent::__property_host_port();
+        $this->query_string = $this->query ?: '';
+
+        if ($is_parse_query and $this->query) {
+            parse_str($this->query_string, $this->query);
+        } elseif (isset($_GET)) {
+            $this->query = $_GET;
         }
 
-        return 'localhost';
+        $this->base_url = sprintf(
+            '%s//%s%s',
+            ($this->scheme ? $this->scheme . ':' : ''),
+            $this->host,
+            ($this->port and 80 !== $this->port) ? ':' . $this->port : ''
+        );
+
+        $this->path_split = explode('/', ltrim($this->path, '/'));
+
+        parent::__construct(array_merge(
+            $this->query,
+            $this->post
+        ));
     }
 
-    protected function __property_request_uri()
+    public function __isset($property)
     {
-        if (isset($_SERVER['REQUEST_URI'])) {
-            return $_SERVER['REQUEST_URI'];
+        return isset($this->$property);
+    }
+
+    public function __get($property)
+    {
+        if (property_exists($this, $property)) {
+            return $this->$property;
+
+        } else {
+            trigger_error(sprintf('Cannot read property %s::$%s',
+                static::class,
+                $property
+            ), E_USER_ERROR);
         }
-
-        if (isset($this->url) or (
-            (isset($this->path_string) or isset($this->path))
-            and (isset($this->query_string) or isset($this->query))
-        )) {
-            return parent::__property_request_uri();
-        }
-
-        return '/';
-    }
-
-    protected function __property_query()
-    {
-        if (isset($_GET)) {
-            return $_GET;
-        }
-        
-        if (isset($this->url)
-            or isset($this->request_uri)
-            or isset($this->query_string)
-        ) {
-            return parent::__property_query();
-        }
-
-        return [];
-    }
-
-    protected function __property_post()
-    {
-        return isset($_POST) ? $_POST : [];
-    }
-
-    protected function __property_cookie()
-    {
-        return isset($_COOKIE) ? $_COOKIE : [];
-    }
-
-    protected function __property_files()
-    {
-        return isset($_FILES) ? $_FILES : [];
-    }
-
-    protected function __property_referer()
-    {
-        return isset($_SERVER['HTTP_REFERER'])
-            ? $_SERVER['HTTP_REFERER']
-            : false;
-    }
-
-    protected function __property_ip() {
-        return isset($_SERVER['REMOTE_ADDR'])
-            ? $_SERVER['REMOTE_ADDR']
-            : '127.0.0.1';
-    }
-
-    protected function __property_user_agent() {
-        return isset($_SERVER['HTTP_USER_AGENT'])
-            ? $_SERVER['HTTP_USER_AGENT']
-            : false;
-    }
-
-    public function any($field, $default = null)
-    {
-        return $this->post($field, $this->query($field, $default));
     }
 
     public function __call($property, $parameter) {
@@ -147,6 +174,59 @@ class Request extends Url
                 $property), 
             E_USER_ERROR);
         }
+    }
+
+    public function __toString()
+    {
+        return $this->url;
+    }
+
+    public function offsetGet($index)
+    {
+        return $this->offsetExists($index) ? parent::offsetGet($index) : null;
+    }
+
+    public function any($field, $default = null)
+    {
+        return isset($this[$field]) ? $this[$field] : $default;
+    }
+
+    public function getUrl($query)
+    {
+        $path = isset($query['path']) ? $query['path'] : '';
+        unset($query['path']);
+
+        if (0 !== strpos($path, '/')) {
+            $path = $this->path . $path;
+        }
+
+        $is_only = isset($query['is_only']) and $query['is_only'];
+        unset($query['is_only']);
+
+        if ($query) {
+            $base_query = $is_only ? [] : $this->query;
+
+            foreach ($query as $key => $value) {
+                unset($base_query[$key]);
+
+                if (is_null($query[$key])) {
+                    unset($query[$key]);
+                }
+            }
+
+            $query = http_build_query(array_merge($base_query, $query));
+        } elseif ($is_only) {
+            $query = '';
+        } else {
+            $query = $this->query_string;
+        }
+
+        return $this->base_url . $path . ($query ? '?' . $query : '');
+    }
+
+    public function pathSlice($offset = 0, $length = null)
+    {
+        return implode('/', array_slice($this->path_split, $offset, $length));
     }
 }
 
