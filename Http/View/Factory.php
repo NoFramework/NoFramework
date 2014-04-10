@@ -126,10 +126,16 @@ class Factory implements \ArrayAccess
 
     public function has_template($template)
     {
-        return is_file(
-            ($this->template_path ? $this->template_path . DIRECTORY_SEPARATOR : '') .
-            $template . $this->template_extension
-        );
+        foreach ((array)$this->template_path as $template_path) {
+            if (is_file(
+                $template_path . DIRECTORY_SEPARATOR .
+                $template . $this->template_extension
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
