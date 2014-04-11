@@ -30,7 +30,7 @@ abstract class Application
 
     protected function __property_session()
     {
-        return (new Session)->start();
+        return $this->is_cli ? [] : (new Session)->start();
     }
 
     protected function __property_display_errors()
@@ -134,7 +134,7 @@ abstract class Application
             fastcgi_finish_request();
         }
 
-        if (isset($this->session)) {
+        if ($this->session instanceof Session) {
             $this->session->writeClose();
         }
 
