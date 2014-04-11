@@ -30,7 +30,7 @@ abstract class Application
 
     protected function __property_session()
     {
-        return $this->is_cli ? [] : (new Session)->start();
+        return (new Session)->start();
     }
 
     protected function __property_display_errors()
@@ -90,8 +90,8 @@ abstract class Application
 
     public function start($option = [])
     {
-        if (isset($_SERVER['argv'][1])) {
-            $option = $_SERVER['argv'][1];
+        if (isset($_SERVER['argv'][1]) and !isset($option['request'])) {
+            $option['request'] = $_SERVER['argv'][1];
         }
 
         if (is_string($option)) {
