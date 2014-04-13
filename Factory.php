@@ -219,6 +219,10 @@ class Factory implements \ArrayAccess
             $return = self::$root[$this->id[0]];
 
             foreach (explode('.', $value) as $property) {
+                if (!is_object($return) or !isset($return->$property)) {
+                    return null;
+                }
+
                 $return = $return->$property;
             }
 
