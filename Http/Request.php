@@ -193,6 +193,10 @@ class Request extends \ArrayObject
 
     public function getUrl($query)
     {
+        if (is_string($query)) {
+            $query = ['path' => $query];
+        }
+
         $path = isset($query['path']) ? $query['path'] : '';
         unset($query['path']);
 
