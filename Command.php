@@ -7,7 +7,7 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Storage;
+namespace NoFramework;
 
 trait Command
 {
@@ -39,6 +39,13 @@ trait Command
                 $method
             ), E_USER_ERROR);
         }
+    }
+
+    public function commandExists($command)
+    {
+        return
+            method_exists($this, '__command_' . $command) or
+            method_exists($this, '__command');
     }
     
     public function __call($command, $argument) {
