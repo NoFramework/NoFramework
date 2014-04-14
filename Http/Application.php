@@ -108,7 +108,7 @@ abstract class Application
 
             $route = array_merge([
                 'method' => ['GET', 'POST'],
-                'command' => 'index',
+                'action' => 'index',
                 'controller' =>
                     str_replace('/', '.', trim($route['path'], '/')),
             ], $route);
@@ -120,7 +120,7 @@ abstract class Application
             ) {
                 return [
                     'controller' => $this->controller,
-                    'command' => $route['command'],
+                    'action' => $route['action'],
                 ];
             }
         }
@@ -128,7 +128,7 @@ abstract class Application
         return false;
     }
 
-    protected function main($emit_jobs)
+    protected function main($option)
     {
         $path = $this->request->path;
         $method = $this->request->method;
@@ -142,7 +142,7 @@ abstract class Application
 
         $route = $this->route($method, $path);
 
-        if (!$route) {
+        if (!$route and isset($this->controller)) {
             $route = $this->controller->route($path);
         }
 
@@ -150,13 +150,11 @@ abstract class Application
             if ('GET' === $method and '/' !== substr($path, -1)) {
                 throw new Redirect($this->request->getUrl($path . '/'));
             }
+
+            $this->respond($route['controller']->{$route['action']}($option));
         } else {
             throw new ErrorStatus(404);
         }
-
-        $this->respond($route['controller']->{$route['command']}([
-            'emit_jobs' => $emit_jobs
-        ]));
     }
 
     public function start($option = [])
@@ -182,11 +180,11 @@ abstract class Application
         $jobs = [];
 
         try {
-            $emit_jobs = function ($job) use (&$jobs) {
-                $jobs[] = $job;
-            };
-
-            $this->main($emit_jobs);
+            $this->main([
+                'emit_jobs' => function ($job) use (&$jobs) {
+                    $jobs[] = $job;
+                },
+            ]);
 
         } catch (Redirect $e) {
             $this->response->redirect($e->getLocation(), $e->getCode());

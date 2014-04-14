@@ -7,7 +7,7 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework;
+namespace NoFramework\Storage;
 
 trait Command
 {
@@ -41,13 +41,6 @@ trait Command
         }
     }
 
-    public function commandExists($command)
-    {
-        return
-            method_exists($this, '__command_' . $command) or
-            method_exists($this, '__command');
-    }
-    
     public function __call($command, $argument) {
         return $this->command(array_merge(
             [$command => isset($argument[0]) ? $argument[0] : null],

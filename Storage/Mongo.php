@@ -12,7 +12,7 @@ namespace NoFramework\Storage;
 class Mongo
 {
     use \NoFramework\MagicProperties;
-    use \NoFramework\Command;
+    use Command;
 
     protected $user = false;
     protected $password = false;
