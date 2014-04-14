@@ -1,10 +1,12 @@
 <?php
 namespace NoFramework\Http;
-use Exception\ErrorStatus;
+use NoFramework\Http\Exception\ErrorStatus;
 
 class Controller extends \NoFramework\Factory
 {
-    use \NoFramework\Command;
+    use \NoFramework\Command {
+        __call as commandCall;
+    }
 
     protected function model($name = false)
     {
@@ -34,7 +36,28 @@ class Controller extends \NoFramework\Factory
 
     protected function __command_index($option)
     {
-        return $this->view[$this->localId()];
+        $template = $this->localId(DIRECTORY_SEPARATOR);
+
+        if ($this->view->hasTemplate($template)) {
+            return $this->view($template);
+        } else {
+            throw new ErrorStatus(404);
+        }
+    }
+
+    protected function view($option)
+    {
+        if (is_string($option)) {
+            $option = ['template' => $option];
+        }
+
+        if (!isset($option['filters']['url'])) {
+            $option['filters']['url'] = function ($query) {
+                return $this->request->getUrl($query);
+            };
+        }
+
+        return  $this->view[$option];
     }
 
     public function route($path)

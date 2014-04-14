@@ -8,10 +8,16 @@
  */
 
 namespace NoFramework\Http;
+use NoFramework\Http\Exception\ErrorStatus;
+use NoFramework\Http\Exception\Redirect;
 
 abstract class Application
 {
     use \NoFramework\MagicProperties;
+
+    protected $redirect_index;
+    protected $route;
+    protected $controller;
 
     protected function __property_request()
     {
@@ -56,6 +62,13 @@ abstract class Application
             $this->view[$view]->respond($this->response, [
                 'status' => $status,
                 'headers' => $headers,
+                'blocks' =>
+                    is_string($this->request['blocks'])
+                    ? array_combine(
+                        explode(',', $this->request['blocks']),
+                        explode(',', $this->request['blocks'])
+                    )
+                    : $this->request['blocks']
             ]);
         }
 
@@ -86,7 +99,63 @@ abstract class Application
         );
     }
 
-    abstract protected function main($emit_jobs);
+    public function route($method, $path)
+    {
+        foreach ((array)$this->route as $route) {
+            if (is_string($route)) {
+                $route = ['path' => $route];
+            }
+
+            $route = array_merge([
+                'method' => ['GET', 'POST'],
+                'command' => 'index',
+                'controller' =>
+                    str_replace('/', '.', trim($route['path'], '/')),
+            ], $route);
+
+            if (
+                $path === $route['path'] and
+                in_array($method, (array)$route['method']) and
+                $controller = $this->controller->reuse($route['controller'])
+            ) {
+                return [
+                    'controller' => $this->controller,
+                    'command' => $route['command'],
+                ];
+            }
+        }
+
+        return false;
+    }
+
+    protected function main($emit_jobs)
+    {
+        $path = $this->request->path;
+        $method = $this->request->method;
+
+        if ('/' === $path and $this->redirect_index) {
+            throw new Redirect($this->request->getUrl([
+                'path' => $this->redirect_index,
+                'is_only' => true,
+            ]));
+        }
+
+        $route = $this->route($method, $path);
+
+        if (!$route) {
+            $route = $this->controller->route($path);
+        }
+
+        if ($route) {
+            if ('GET' === $method and '/' !== substr($path, -1)) {
+                throw new Redirect($this->request->getUrl($path . '/'));
+            }
+        } else {
+            throw new ErrorStatus(404);
+        }
+
+        $this->respond($route['controller']->{$route['command']}());
+    }
 
     public function start($option = [])
     {
@@ -117,14 +186,14 @@ abstract class Application
 
             $this->main($emit_jobs);
 
-        } catch (Exception\Redirect $e) {
+        } catch (Redirect $e) {
             $this->response->redirect($e->getLocation(), $e->getCode());
 
-        } catch (Exception\ErrorStatus $e) {
+        } catch (ErrorStatus $e) {
             $this->respondError($e);
 
         } catch (\Exception $e) {
-            $this->respondError(new Exception\ErrorStatus(500, [], $e));
+            $this->respondError(new ErrorStatus(500, [], $e));
 
         }
 

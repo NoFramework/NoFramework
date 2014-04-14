@@ -52,9 +52,9 @@ class Factory implements \ArrayAccess
             )
         );
         
-        foreach ($filters as $name => $filter) {
-            $twig->addFilter(new \Twig_SimpleFilter(
-                $name,
+        foreach ($filters as $filter_name => $filter) {
+            $out->addFilter(new \Twig_SimpleFilter(
+                $filter_name,
                 $filter
             ));
         }
@@ -114,7 +114,6 @@ class Factory implements \ArrayAccess
                     isset($data['filters']) ? $data['filters'] : []
                 );
 
-                unset($data['template']);
                 unset($data['filters']);
             }
 
@@ -124,7 +123,7 @@ class Factory implements \ArrayAccess
         return new Item($state);
     }
 
-    public function has_template($template)
+    public function hasTemplate($template)
     {
         foreach ((array)$this->template_path as $template_path) {
             if (is_file(
