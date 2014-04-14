@@ -4,9 +4,7 @@ use NoFramework\Http\Exception\ErrorStatus;
 
 class Controller extends \NoFramework\Factory
 {
-    use \NoFramework\Command {
-        __call as commandCall;
-    }
+    use \NoFramework\Command;
 
     protected function model($name = false)
     {

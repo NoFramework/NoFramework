@@ -213,6 +213,10 @@ class Request extends \ArrayObject
             foreach ($query as $key => $value) {
                 unset($base_query[$key]);
 
+                if (is_string($value) and 0 === strpos($value, '=')) {
+                    $query[$key] = $this[substr($value, 1)];
+                }
+
                 if (is_null($query[$key])) {
                     unset($query[$key]);
                 }

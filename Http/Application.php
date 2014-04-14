@@ -154,7 +154,9 @@ abstract class Application
             throw new ErrorStatus(404);
         }
 
-        $this->respond($route['controller']->{$route['command']}());
+        $this->respond($route['controller']->{$route['command']}([
+            'emit_jobs' => $emit_jobs
+        ]));
     }
 
     public function start($option = [])
