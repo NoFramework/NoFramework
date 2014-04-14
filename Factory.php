@@ -131,6 +131,14 @@ class Factory implements \ArrayAccess
         return $this->__operator_reuse($value);
     }
 
+    public function localId($implode = '.')
+    {
+        return substr(
+            implode($implode, array_slice($this->id, 1)),
+            strlen($this->local_reuse) + 1
+        );
+    }
+
     public static function __callStatic($id, $parameter)
     {
         if (!isset(self::$root[$id])) {
