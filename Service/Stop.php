@@ -7,6 +7,7 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Service\Exception;
+namespace NoFramework\Service;
+
 class Stop extends \Exception {}
 
