@@ -137,10 +137,16 @@ Create /home/example.com/nginx.include:
 ```nginx
 server {
     listen eth0; # defined in /etc/hosts
+    server_name www.example.com;
+    return 301 $scheme://example.com$request_uri;
+}
+
+server {
+    listen eth0; # defined in /etc/hosts
     server_name example.com;
+    root /home/$host;
 
     location = /favicon.ico {
-        root /home/$host;
     }
 
     location / {
@@ -149,7 +155,6 @@ server {
         fastcgi_param SCRIPT_FILENAME /home/$host/index.php;
     }
 }
-
 ```
 
 ```
