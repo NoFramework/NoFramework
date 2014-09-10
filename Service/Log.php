@@ -7,13 +7,17 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Log;
+namespace NoFramework\Service;
 
-abstract class Base
+class Log
 {
-    protected $type_filter = false;
+    protected $type_filter;
+    protected $is_output_date = true;
 
-    abstract protected function onWrite($message, $type);
+    protected function out($message)
+    {
+        echo $message . PHP_EOL;
+    }
 
     protected function dateFormat() {
         return '[' . date('j-M-Y H:i:s') . ']';
@@ -21,42 +25,18 @@ abstract class Base
 
     public function write($message, $type = false)
     {
-        if (false === $this->type_filter
-        or false === $type
-        or false !== array_search($type, $this->type_filter)
+        if (
+            !$this->type_filter or
+            !$type or
+            false !== array_search($type, $this->type_filter)
         ) {
-            $this->onWrite(trim($message), $type);
+            $this->out(
+                ($this->is_output_date ? $this->dateFormat() . ' ' : '') .
+                ($type ? '[' . $type . '] ' : '') . trim($message)
+            );
         }
 
         return $this;
-    }
-
-    public function each($items, $format = false, $type = false)
-    {
-        foreach ($items as $key => $item) {
-            if ($format) {
-                $data = [$key];
-
-                if (is_array($item) or $item instanceof \Traversable) {
-                    foreach ($item as $value) {
-                        $data[] = print_r($value, true);
-                    }
-                } else {
-                    $data[] = print_r($item, true);
-                }
-
-                $message = vsprintf($format, $data);
-
-            } else {
-                $message = print_r(compact('key', 'item') , true);
-            }
-
-            $this->write($message,
-                method_exists($type, '__invoke')
-                ? $type($item, $key) ?: false
-                : $type
-            );
-        }
     }
 }
 
