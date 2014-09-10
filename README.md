@@ -169,7 +169,7 @@ Put some html in:
 
 Restart nginx
 
-Edit /etc/hosts if needed
+Edit /etc/hosts if necessary
 
 Visit:
 ```
