@@ -7,20 +7,18 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Log;
+namespace NoFramework\Service;
 
-class Error extends Base
+class ErrorLog extends Log
 {
     protected $message_type = 0;
     protected $destination;
     protected $extra_headers;
-    protected $is_output_date = true;
 
-    protected function onWrite($message, $type)
+    protected function out($message)
     {
         return error_log(
-            ($this->is_output_date ? $this->dateFormat() . ' ' : '') .
-            ($type ? '[' . $type . '] ' : '') . $message,
+            $message,
             $this->message_type,
             $this->destination,
             $this->extra_headers
