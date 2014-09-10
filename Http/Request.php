@@ -11,11 +11,11 @@ namespace NoFramework\Http;
 
 class Request extends \ArrayObject
 {
-    protected $url;
-    protected $base_url;
-    protected $query_string;
-    protected $path_split;
-    protected $method;
+    protected $url = '//localhost/';
+    protected $base_url = '//localhost';
+    protected $query_string = '';
+    protected $path_split = [];
+    protected $method = 'GET';
 
     protected $scheme = '';
     protected $host = 'localhost';
@@ -53,76 +53,70 @@ class Request extends \ArrayObject
      */
     public function __construct($state = [])
     {
-        if (is_string($state)) {
-            $state = ['url' => $state];
-        }
+        $state = is_string($state) ? ['url' => $state] : $state;
+        $url = &$state['url'];
+        $is_parse_query = (bool)$url;
 
-        $is_parse_query = true;
+        $url = $url ?: sprintf(
+            '%s://%s%s',
+            (
+                isset($_SERVER['SERVER_PROTOCOL']) and
+                false !== strpos(
+                    strtolower($_SERVER['SERVER_PROTOCOL']),
+                    'https'
+                )
+            )
+            ? 'https'
+            : 'http',
 
-        if (!isset($state['url'])) {
-            $state['url'] = sprintf(
-                '%s://%s%s',
+            isset($_SERVER['HTTP_X_FORWARDED_HOST'])
+            ? $_SERVER['HTTP_X_FORWARDED_HOST']
+            : (
+                isset($_SERVER['HTTP_HOST'])
+                ? $_SERVER['HTTP_HOST']
+                : 'localhost'
+            ),
 
-                (isset($_SERVER['SERVER_PROTOCOL']) and false !== strpos(strtolower($_SERVER['SERVER_PROTOCOL']), 'https'))
-                ? 'https'
-                : 'http',
-
-                isset($_SERVER['HTTP_X_FORWARDED_HOST'])
-                ? $_SERVER['HTTP_X_FORWARDED_HOST']
-                : (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : 'localhost'),
-
-                isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/'
-            );
-
-            $is_parse_query = false;
-        }
-
-        $state = array_merge(
-            [
-                'method' =>
-                    isset($_SERVER['REQUEST_METHOD'])
-                    ? substr($_SERVER['REQUEST_METHOD'], 0, 7)
-                    : 'GET'
-                ,
-                'post' => isset($_POST) ? $_POST : [],
-                'cookie' => isset($_COOKIE) ? $_COOKIE : [],
-                'files' => isset($_FILES) ? $_FILES : [],
-                'referer' =>
-                    isset($_SERVER['HTTP_REFERER'])
-                    ? $_SERVER['HTTP_REFERER']
-                    : false
-                ,
-                'ip' =>
-                    isset($_SERVER['REMOTE_ADDR'])
-                    ? $_SERVER['REMOTE_ADDR']
-                    : '127.0.0.1'
-                ,
-                'user_agent' =>
-                    isset($_SERVER['HTTP_USER_AGENT'])
-                    ? $_SERVER['HTTP_USER_AGENT']
-                    : false,
-            ],
-            array_intersect_key($state, array_flip([
-                'url',
-                'method',
-                'post',
-                'cookie',
-                'files',
-                'referer',
-                'ip',
-                'user_agent',
-            ])),
-            parse_url($state['url'])
+            isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/'
         );
 
-        foreach ($state as $property => $value) {
-            $this->$property = $value;
+        $state = parse_url($url);
+
+        $state += array_intersect_key($state, array_flip([
+            'url',
+            'method',
+            'post',
+            'cookie',
+            'files',
+            'referer',
+            'ip',
+            'user_agent',
+        ]));
+
+        $state += [
+            'method' =>
+                isset($_SERVER['REQUEST_METHOD'])
+                ? substr($_SERVER['REQUEST_METHOD'], 0, 7)
+                : 'GET'
+            ,
+            'post' => &$_POST,
+            'cookie' => &$_COOKIE,
+            'files' => &$_FILES,
+            'referer' => &$_SERVER['HTTP_REFERER'],
+            'ip' => &$_SERVER['REMOTE_ADDR'],
+            'user_agent' => &$_SERVER['HTTP_USER_AGENT'],
+        ];
+
+        $this->query_string = &$state['query'];
+        unset($state['query']);
+
+        foreach (array_filter($state) as $key => $value) {
+            $this->$key = $value;
         }
 
-        $this->query_string = $this->query ?: '';
-
-        if ($is_parse_query and $this->query) {
+        if ($is_parse_query and $this->query_string) {
             parse_str($this->query_string, $this->query);
+
         } elseif (isset($_GET)) {
             $this->query = $_GET;
         }
@@ -136,42 +130,39 @@ class Request extends \ArrayObject
 
         $this->path_split = explode('/', ltrim($this->path, '/'));
 
-        parent::__construct(array_merge(
-            $this->query,
-            $this->post
-        ));
+        parent::__construct($this->post + $this->query);
     }
 
-    public function __isset($property)
+    public function __isset($name)
     {
-        return isset($this->$property);
+        return isset($this->$name);
     }
 
-    public function __get($property)
+    public function __get($name)
     {
-        if (property_exists($this, $property)) {
-            return $this->$property;
+        if (property_exists($this, $name)) {
+            return $this->$name;
 
         } else {
-            trigger_error(sprintf('Cannot read property %s::$%s',
+            trigger_error(sprintf('Cannot get property %s::$%s',
                 static::class,
-                $property
+                $name
             ), E_USER_ERROR);
         }
     }
 
-    public function __call($property, $parameter) {
-        if (in_array($property, ['query', 'post', 'cookie', 'files'])) {
-            $property = $this->$property;
+    public function __call($name, $arguments) {
+        if (in_array($name, ['query', 'post', 'cookie', 'files'])) {
+            $key = &$arguments[0];
+            $default = &$arguments[1];
 
-            return isset($property[$parameter[0]])
-                ? $property[$parameter[0]]
-                : (isset($parameter[1]) ? $parameter[1] : null);
+            return isset($this->$name[$key]) ? $this->$name[$key] : $default;
+
         } else {
             trigger_error(
                 sprintf('Call to undefined method %s::%s.',
                 static::class,
-                $property), 
+                $name), 
             E_USER_ERROR);
         }
     }
@@ -186,29 +177,34 @@ class Request extends \ArrayObject
         return $this->offsetExists($index) ? parent::offsetGet($index) : null;
     }
 
-    public function any($field, $default = null)
+    public function any($key, $default = null)
     {
-        return isset($this[$field]) ? $this[$field] : $default;
+        return isset($this[$key]) ? $this[$key] : $default;
     }
 
-    public function getUrl($query)
+    public function url($query, $base_path = false)
     {
-        if (is_string($query)) {
-            $query = ['path' => $query];
-        }
+        $query = is_string($query) ? ['path' => $query] : $query;
 
-        $path = isset($query['path']) ? $query['path'] : '';
+        $path = &$query['path'];
         unset($query['path']);
 
-        if (0 !== strpos($path, '/')) {
-            $path = $this->path . $path;
+        $is_inherit = 0 !== strpos($path, '!');
+        $path = $is_inherit ? $path : substr($path, 1);
+
+        $path = strtok($path, '?');
+
+        if ($path_query = strtok('')) {
+            parse_str($path_query, $add_query);
+            $query += $add_query;
         }
 
-        $is_only = isset($query['is_only']) and $query['is_only'];
-        unset($query['is_only']);
+        if (0 !== strpos($path, '/')) {
+            $path = ($base_path ?: $this->path) . $path;
+        }
 
         if ($query) {
-            $base_query = $is_only ? [] : $this->query;
+            $base_query = $is_inherit ? $this->query : [];
 
             foreach ($query as $key => $value) {
                 unset($base_query[$key]);
@@ -217,16 +213,18 @@ class Request extends \ArrayObject
                     $query[$key] = $this[substr($value, 1)];
                 }
 
-                if (is_null($query[$key])) {
+                if (!isset($query[$key])) {
                     unset($query[$key]);
                 }
             }
 
-            $query = http_build_query(array_merge($base_query, $query));
-        } elseif ($is_only) {
-            $query = '';
-        } else {
+            $query = http_build_query($query + $base_query);
+
+        } elseif ($is_inherit) {
             $query = $this->query_string;
+
+        } else {
+            $query = '';
         }
 
         return $this->base_url . $path . ($query ? '?' . $query : '');
