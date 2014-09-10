@@ -47,6 +47,26 @@ class Session implements \ArrayAccess
         return $return;
     }
 
+    public function clear() {
+        $walk = function (&$session) use (&$walk) {
+            foreach ($session as $key => $value) {
+                if (!isset($session[$key])) {
+                    unset($session[$key]);
+                } elseif (is_array($session[$key])) {
+                    $walk($session[$key]);
+
+                    if (!$session[$key]) {
+                        unset($session[$key]);
+                    }
+                }
+            }
+        };
+
+        $walk($_SESSION);
+
+        return $this;
+    }
+
     public function writeClose() {
         session_write_close();
     }
