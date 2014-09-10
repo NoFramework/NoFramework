@@ -11,294 +11,318 @@ namespace NoFramework;
 
 class Config
 {
-    const MAGIC_PARSE_METHOD = '__parse_';
+    /**
+     * service.pidfile: !local_path service.pid
+     *
+     * http.template.path: !start_path template
+     * http.template.cache: !cache_path template_cache
+     */
+    protected $path = [
+        'start' => '',
+        'class' => 'class',
+        'config' => '.config',
+        'cache' => '.cache',
+        'local' => '.local',
+    ];
 
-    protected $script_path;
-    protected $config_path;
-    protected $cache_path;
-    protected $local_path;
-
-    public function __construct($state = [])
+    public function __construct($path = [])
     {
-        $this->script_path =
-            isset($state['script_path'])
-            ? $state['script_path']
-            : dirname(realpath($_SERVER['SCRIPT_FILENAME']));
-
-        foreach ([
-            'config_path' => '.config' . DIRECTORY_SEPARATOR .
-                str_replace('\\', DIRECTORY_SEPARATOR,  __NAMESPACE__),
-            'cache_path' => '.cache',
-            'local_path' => '.local'
-        ] as $property => $find_path) {
-            $this->$property =
-                isset($state[$property])
-                ? $state[$property]
-                : $this->findPath($this->script_path, $find_path);
-        }
-    }
-
-    protected function findPath($start, $find)
-    {
-        $current = $start;
-        $found = false;
-
-        do {
-            if (is_dir($current . DIRECTORY_SEPARATOR . $find)) {
-                $found = $current . DIRECTORY_SEPARATOR . $find;
-                break;
-            }
-
-            $current = realpath($current . DIRECTORY_SEPARATOR . '..');
-        } while (DIRECTORY_SEPARATOR !== $current);
-
-        return $found ?: $start;
-    }
-
-    protected function getCallbacks()
-    {
-        $return = [];
-
-        foreach (get_class_methods($this) as $method) {
-            if (0 === strpos($method, static::MAGIC_PARSE_METHOD)) {
-                $return['!' . substr(
-                    $method,
-                    strlen(static::MAGIC_PARSE_METHOD)
-                )] = [$this, $method];
-            }
-        }
-        
-        return $return;
-    }
-
-    public function withFile($filename, $closure, $offset = 0, $pos = 0)
-    {
-        if (0 !== strpos($filename, DIRECTORY_SEPARATOR)) {
-            $filename = $this->config_path . DIRECTORY_SEPARATOR . $filename;
-        }
-
-        if ($offset) {
-            $this->withString(
-                file_get_contents($filename, false, null, $offset),
-                $closure,
-                $pos
-            );
-        } else {
-            $closure(
-                yaml_parse_file($filename, $pos, $ndocs, $this->getCallbacks()),
-                $ndocs
-            );
-            gc_collect_cycles();
-        }
-
-        return $this;
-    }
-
-    public function withString($input, $closure, $pos = 0)
-    {
-        $closure(
-            yaml_parse($input, $pos, $ndocs, $this->getCallbacks()),
-            $ndocs
-        );
-        gc_collect_cycles();
-        return $this;
-    }
-
-    public function __parse_ini_set($value, $tag, $flags)
-    {
-        if (is_array($value)) {
-            foreach ($value as $ini_key => $ini_value) {
-                ini_set($ini_key, $ini_value);
-            }
-        }
-
-        return $value;
-    }
-
-    public function __parse_time_limit($value, $tag, $flags)
-    {
-        set_time_limit($value);
-        return $value;
-    }
-
-    public function __parse_locale($value, $tag, $flags)
-    {
-        setlocale(LC_ALL, $value);
-        return $value;
-    }
-
-    public function __parse_period($value, $tag, $flags)
-    {
-        $interval = new \DateInterval(
-            'P' . strtoupper(str_replace(' ', '', $value)));
-
-        return ($interval->y * 365 * 24 * 60 * 60) +
-            ($interval->m * 30 * 24 * 60 * 60) +
-            ($interval->d * 24 * 60 * 60) +
-            ($interval->h * 60 * 60) +
-            ($interval->i * 60) +
-            $interval->s;
-    }
-
-    public function __parse_script_path($value, $tag, $flags)
-    {
-        return $this->script_path .
-            ($value ? DIRECTORY_SEPARATOR . $value : '');
-    }
-
-    public function __parse_cache_path($value, $tag, $flags)
-    {
-        return $this->cache_path .
-            ($value ? DIRECTORY_SEPARATOR . $value : '');
-    }
-
-    public function __parse_local_path($value, $tag, $flags)
-    {
-        return $this->local_path .
-            ($value ? DIRECTORY_SEPARATOR . $value : '');
-    }
-
-    public function __parse_read($value, $tag, $flags)
-    {
-        return ['$' => function($id = false) use ($value) {
-            $offset = 0;
-
-            if (isset($value['filename'])) {
-                if (isset($value['offset'])) {
-                    $offset = $value['offset'];
+        $this->path = array_filter(array_map(
+            function ($path) {
+                if (!$this->isRelativePath($path)) {
+                    return realpath($path);
                 }
 
-                $value = $value['filename'];
-            }
+                $start = dirname($_SERVER['SCRIPT_FILENAME']);
 
-            $this->withFile($value, function ($state) use (&$return) {
-                $return = $state;
-            }, $offset);
+                do {
+                    $start .= DIRECTORY_SEPARATOR;
 
-            if (
-                $id and
-                isset($return['$new']) and
-                !isset($return['$new']['local_reuse'])
-            ) {
-                $return['$new']['local_reuse'] = implode('.', $id);
-            }
+                    if (is_dir($start . $path)) {
+                        return realpath($start . $path);
+                    }
 
-            return $return;
-        }];
+                    $start .= '..';
+                } while (
+                    strtok(' ' . realpath($start), DIRECTORY_SEPARATOR) and
+                    strtok(DIRECTORY_SEPARATOR)
+                );
+            },
+            $path + $this->path
+        ));
     }
 
-    public function __parse_new($value, $tag, $flags)
+    public function isRelativePath($path)
+    {
+        $path = str_replace(DIRECTORY_SEPARATOR, '/', $path);
+
+        return
+            0 !== strpos($path, '/') and
+            ':' !== substr(strtok($path, '/'), -1)
+        ;
+    }
+
+    public function path($name, $path = '')
+    {
+        $prefix = isset($this->path[$name]) ? $this->path[$name] : '';
+
+        return
+            $prefix .
+            ($prefix && $path ? DIRECTORY_SEPARATOR : '') .
+            $path
+        ;
+    }
+
+    public function parse($source, $type = 'file', $is_object = true)
+    {
+        if ('file' === $type and $this->isRelativePath($source)) {
+            $source = $this->path('config', $source);
+        }
+
+        $resolve = [];
+
+        foreach ($this->path as $tag => $ignored) {
+            $resolve['!' . $tag . '_path'] = function ($value) use ($tag) {
+                return $this->path($tag, $value);
+            };
+        }
+
+        foreach (get_class_methods($this) as $method) {
+            if (0 === strpos($method, '__resolve_')) {
+                $tag = substr($method, strlen('__resolve_'));
+                $resolve['!' . $tag] = [$this, $method];
+            }
+        }
+
+        $parse = [
+            'file' => 'yaml_parse_file',
+            'url' => 'yaml_parse_url',
+            'string' => 'yaml_parse',
+        ][$type];
+        
+        $out = $parse($source, 0, $ignored, $resolve);
+
+        if ($is_object) {
+            $class = &$out['class'];
+            unset($out['class']);
+
+            $out = $class ? new $class($out) : new Factory($out);
+        }
+
+        gc_collect_cycles();
+
+        return $out;
+    }
+
+    public function parseLater($source, $type = 'file', $is_object = true)
+    {
+        yield $this->parse($source, $type, $is_object);
+    }
+
+    public function autoload($value = [])
+    {
+        $value = is_string($value) ? ['namespace' => $value] : $value;
+
+        $namespace = &$value['namespace'];
+
+        if (!$namespace or $namespace === __NAMESPACE__) {
+            if (!class_exists(__NAMESPACE__ . '\Autoload', false)) {
+                require __DIR__ . '/Autoload.php';
+            }
+
+            return (new Autoload)->register();
+        }
+
+        $path = &$value['path'];
+
+        if (!isset($path)) {
+            $path = str_replace(
+                array_replace(['separator' => '\\'], $value)['separator'],
+                DIRECTORY_SEPARATOR,
+                $namespace
+            );
+        }
+        
+        if ($this->isRelativePath($path)) {
+            $path = $this->path('class', $path);
+        }
+
+        $class = &$value['class'];
+        unset($value['class']);
+
+        $out = $class ? new $class($value) : new Autoload($value);
+
+        return $out->register();
+    }
+
+    /**
+     * format: 1d 1h 1m 1s
+     */
+    public function period($value)
+    {
+        if (is_numeric($value)) {
+            return $value;
+        }
+
+        preg_match(
+            '~^((\d+)d)?((\d+)h)?((\d+)m)?((\d+)s)?$~i',
+            str_replace(' ', '', $value),
+            $out
+        );
+
+        $out = array_pad($out, 9, null);
+
+        return 
+            ($out[2] * 24 * 60 * 60) +
+            ($out[4] * 60 * 60) +
+            ($out[6] * 60) +
+            $out[8]
+        ;
+    }
+
+    /**
+     * ini_set: !ini_set
+     *   date.timezone: UTC
+     */
+    protected function __resolve_ini_set($value)
+    {
+        foreach ($value as $key => $set) {
+            ini_set($key, $set);
+        }
+
+        return $value;
+    }
+
+    /**
+     * locale: !locale ru_RU.utf8
+     */
+    protected function __resolve_locale($value)
+    {
+        setlocale(LC_ALL, $value);
+
+        return $value;
+    }
+
+    /**
+     * time_limit: !time_limit 1h
+     */
+    protected function __resolve_time_limit($value)
+    {
+        set_time_limit($this->period($value));
+
+        return $value;
+    }
+
+    /**
+     * autoload: !autoload
+     *   - NoFramework
+     *   - namespace: Twig
+     *     path: Twig/lib/Twig
+     *     separator: _
+     *   - AnyEntry
+     *   - class: AnyEntry\Autoload\SomeNonPsr0
+     */
+    protected function __resolve_autoload($value)
+    {
+        return
+            (
+                is_array($value) and
+                array_keys($value) === range(0, count($value) - 1)
+            )
+            ? array_map([$this, 'autoload'], $value)
+            : $this->autoload($value)
+        ;
+    }
+
+    /**
+     * error_handler: !error_handler
+     *   - recoverable error
+     *   - user error
+     *   - warning
+     *   - user warning
+     *   - notice
+     *   - user notice
+     *   - strict
+     *   - deprecated
+     *   - user deprecated
+     */
+    protected function __resolve_error_handler($value)
+    {
+        return (new ErrorHandler(
+            $value
+
+            ? array_reduce($value, function ($result, $item) {
+                return $result | constant(
+                    'E_' . str_replace(' ', '_', strtoupper($item))
+                );
+            }, 0)
+
+            : -1
+        ))->register();
+    }
+
+    /**
+     * timeout: !period 30m
+     */
+    protected function __resolve_period($value)
+    {
+        return $this->period($value);
+    }
+
+    /**
+     * config: !config
+     */
+    protected function __resolve_config($value)
+    {
+        return $this;
+    }
+
+    /**
+     * model: !parse model.yaml
+     *
+     * data: !parse
+     *   file: data.yaml
+     *   is_object: false
+     */
+    protected function __resolve_parse($value)
+    {
+        $value = is_string($value) ? ['file' => $value] : $value;
+
+        $out = $this->parseLater($value['file'], 'file', false);
+
+        return
+            array_replace(['is_object' => true], $value)['is_object']
+            ? ['$newRoot' => $out]
+            : $out
+        ;
+    }
+
+    /**
+     * db: !new
+     *   class: NoFramework\Database\Mongo
+     *   db: example
+     *   username: example
+     *   password: secret
+     */
+    protected function __resolve_new($value)
     {
         return ['$new' => $value];
     }
 
-    public function __parse_reuse($value, $tag, $flags)
+    /**
+     * model: !newRoot
+     *   class: NoFramework\Model\Collection
+     *   db: !use global.db
+     *   collection1.fs: !use collection2.fs  # store files in common gridfs
+     */
+    protected function __resolve_newRoot($value)
     {
-        return ['$reuse' => $value];
+        return ['$newRoot' => $value];
     }
 
-    public function __parse_autoload($value, $tag, $flags)
+    protected function __resolve_use($value)
     {
-        $return = [];
-
-        foreach ((array)$value as $state) {
-            if (!$state) {
-                $state = ['namespace' => __NAMESPACE__];
-
-            } elseif (is_string($state)) {
-                $state = [
-                    'namespace' => $state,
-                    'path' => str_replace('\\', DIRECTORY_SEPARATOR, $state)
-                ];
-            }
-
-            $class = __NAMESPACE__ . '\Autoload';
-
-            if (isset($state['class'])) {
-                $class = $state['class'];
-                unset($state['class']);
-            }
-
-            if (isset($state['path']) and
-                0 !== strpos($state['path'], DIRECTORY_SEPARATOR)
-            ) {
-                $state['path'] = realpath(implode(DIRECTORY_SEPARATOR, [
-                    __DIR__, '..', $state['path']
-                ]));
-            }
-
-            if (!class_exists($class, false)) {
-                require implode(DIRECTORY_SEPARATOR, [
-                    __DIR__, '..',
-                    str_replace('\\', DIRECTORY_SEPARATOR, $class) . '.php'
-                ]);
-            }
-
-            $return[] = (new $class($state))->register();
-        }
-
-        return $return;
-    }
-
-    public function __parse_error_handler($value, $tag, $flags)
-    {
-        if (isset($value['error_types'])) {
-            $error_types = (array)$value['error_types'];
-
-        } elseif ($value) {
-            $error_types = (array)$value;
-        }
-
-        $state = false;
-
-        if (isset($error_types)) {
-            $state = 0;
-
-            foreach ($error_types as $error_type) {
-                $state |= constant(
-                    'E_' . str_replace(' ', '_', strtoupper($error_type))
-                );
-            }
-        }
-
-        $class = __NAMESPACE__ . '\Error\Handler';
-
-        if (isset($value['class'])) {
-            $class = $value['class'];
-        }
-
-        $error_handler = new $class($state);
-        $error_handler->register();
-
-        return $error_handler;
-    }
-
-    public static function __callStatic($name, $parameter)
-    {
-        $filename = $name . '.yaml';
-        $offset = 0;
-
-        if (isset($parameter[0])) {
-            if (isset($parameter[1])) {
-                $filename = $parameter[0];
-                $offset = $parameter[1];
-
-            } elseif (is_numeric($parameter[0])) {
-                $offset = $parameter[0];
-
-            } else {
-                $filename = $parameter[0];
-            }
-        }
-
-        (new static)->withFile($filename, function ($state) use ($name) {
-            $class = isset($state['class'])
-                ? $state['class']
-                : __NAMESPACE__ . '\Factory';
-            $class::$name($state);
-        }, $offset);
-
-        return Factory::$name();
+        return ['$use' => $value];
     }
 }
 
