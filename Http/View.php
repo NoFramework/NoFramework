@@ -7,130 +7,109 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Http\View;
+namespace NoFramework\Http;
 
-class Item extends \ArrayObject
+class View extends \ArrayObject
 {
-    protected $charset = 'utf-8';
-    protected $json_options = 0;
-    protected $json_depth = 512;
-    protected $template;
+    public $status = 200;
+    public $content_type;
+    public $charset = 'utf-8';
+    public $headers = [];
+    public $cookies = [];
+    public $is_silent = false;
+    public $template;
+    public $block;
 
-    public function __construct($option)
+    public function __construct($state = [], $data = [])
     {
-        if (isset($option['data'])) {
-            parent::__construct($option['data']);
-            unset($option['data']);
+        foreach ($state as $key => $value) {
+            $this->$key = $value;
         }
 
-        foreach ($option as $property => $value) {
-            $this->$property = $value;
-        }
+        parent::__construct($data);
     }
 
-    public function jsonEncode($data)
+    public function respond($response)
     {
-        return json_encode($data, $this->json_options, $this->json_depth);
-    }
-
-    public function renderTemplate($blocks = false)
-    {
-        if (!$this->template) {
-            throw new \LogicException('Template is not set');
+        if ($this->is_silent) {
+            return $response;
         }
 
-        $out = array_merge([
-            'charset' => $this->charset
-        ], (array)$this);
+        $this->respondHead($response);
 
-        return
-            $blocks
-            ? (
-                is_array($blocks)
-                ? array_map(function ($block) use ($out) {
-                    return
-                        'html' === $block
-                        ? $this->template->render($out)
-                        : $this->template->renderBlock($block, $out)
-                    ;
-                }, $blocks)
-                : $this->template->renderBlock($blocks, $out)
+        $data = $this->getArrayCopy();
+
+        if ($this->template and !is_array($this->block)) {
+            return $response->output($this->template($data, $this->block));
+
+        } elseif ($this->template) {
+            $data = array_map(function ($block) use ($data) {
+                return $this->template($data, $block);
+            }, $this->block);
+        }
+
+        return $response->output($this->json($data));
+    }
+
+    public function respondHead($response)
+    {
+        if ($this->is_silent or $response->isHeadersSent()) {
+            return $response;
+        }
+
+        $headers = $this->headers + ['X-Powered-By' => null];
+
+        if ($content_type = $this->getContentType()) {
+            $headers['Content-Type'] = $content_type .
+                ($this->charset ? '; charset=' . $this->charset : '');
+        }
+
+        $response->status($this->status);
+
+        foreach ($headers as $key => $value) {
+            $response->header($key, $value);
+        }
+
+        foreach ($this->cookies as $key => $value) {
+            $response->cookie($key, $value);
+        }
+
+        return $response;
+    }
+
+    public function getContentType()
+    {
+        return   
+            isset($this->content_type)
+            ? $this->content_type
+            : (
+                ($this->template and !is_array($this->block))
+                ? 'text/html'
+                : 'application/json'
             )
-            : $this->template->render($out)
         ;
     }
 
-    public function render($blocks = false)
+    public function template($data, $block = false)
     {
-        if ($this->template) {
-            if ($blocks and is_array($blocks)) {
-                return $this->jsonEncode(array_merge(
-                    ['success' => isset($this['success']) ? $this['success'] : true],
-                    $this->renderTemplate($blocks)
-                ));
-            } else {
-                return $this->renderTemplate($blocks);
-            }
+        if (is_callable($this->template)) {
+            return call_user_func($this->template, $data, $block);
+
+        } elseif (is_string($this->template)) {
+            return $block ? '' : $this->template;
+
         } else {
-            return $this->jsonEncode(array_merge(
-                ['success' => true],
-                (array)$this
-            ));
+            return
+                $block
+                ? $this->template->renderBlock($block, $data)
+                : $this->template->render($data)
+            ;
         }
     }
 
-    public function respondHeaders($response, $option = [])
+    public function json($data, $options = 0)
     {
-        if ($response->isHeadersSent()) {
-            return $this;
-        }
-
-        $option = array_merge([
-            'status' => 200,
-            'content_type' => 'text/plain',
-            'headers' => [],
-        ], $option);
-
-        $headers = array_merge([
-            'Content-Type' => $option['content_type'] . ($this->charset ? '; charset=' . $this->charset : ''),
-            'X-Powered-By' => null,
-        ], $option['headers']);
-
-        $response->status($option['status']);
-
-        foreach ($headers as $name => $value) {
-            $response->header($name, $value);
-        }
-
-        return $this;
-    }
-
-    /**
-     * option:
-     *   status (default: 200)
-     *   content_type
-     *   headers
-     *   blocks
-     */
-    public function respond($response = false, $option = [])
-    {
-        $option = array_merge(['blocks' => false], $option);
-        $payload = $this->render($option['blocks']);
-
-        if ($response) {
-            $this->respondHeaders($response, array_merge([
-                'content_type' =>
-                    ($this->template and (!$option['blocks'] or !is_array($option['blocks'])))
-                    ? 'text/html'
-                    : 'application/json'
-                ,
-            ], $option));
-            $response->payload($payload);
-        } else {
-            echo $payload;
-        }
-
-        return $this;
+        return json_encode($data + ['success' => true], $options);
     }
 }
 
