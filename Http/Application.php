@@ -18,29 +18,9 @@ class Application extends Controller
 
     public function start($option = [])
     {
-        $option = is_string($option) ? ['request' => $option] : $option;
-
-        if ($this->is_cli and isset($_SERVER['argv'][1])) {
-            $option['request'] = $_SERVER['argv'][1];
-        }
-
-        if ($request = &$option['request']) {
-            $this->__property['request'] = new Request($request);
-        }
-
-        unset($option['request']);
-
         if ($this->session instanceof Session) {
             $this->session->start();
         }
-
-        if ($session = &$option['session']) {
-            foreach ($session as $key => $value) {
-                $this->session[$key] = $value;
-            }
-        }
-
-        unset($option['session']);
 
         $jobs = [];
 
@@ -78,27 +58,14 @@ class Application extends Controller
         }
     }
 
-    protected function respond($view)
-    {
-        return $view->respond($this->response);
-    }
-
     protected function main($option)
     {
-        $path = $this->request->path;
-        $method = $this->request->method;
-
-        if ($route = $this->route($path, $method)) {
-            if (
-                'GET' === $method and
-                $route->correct_path and
-                $route->correct_path !== $path
-            ) {
-                $this->redirect($this->request->url($route->correct_path), 301);
-            }
-
-            $this->respond($route->controller->{$route->action}($option));
-
+        if ($route = $this->route($this->request->path)) {
+            $route
+                ->controller
+                ->{$route->action}($option)
+                ->respond($this->response)
+            ;
         } else {
             $this->error(404);
         }

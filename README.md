@@ -132,27 +132,30 @@ require __DIR__ . '/class/NoFramework/Autoload.php';
 
 ```
 
+Edit /etc/hosts on server and set ip of example.com explicitly.
+
 Create /home/example.com/nginx.include:
 
 ```nginx
 server {
-    listen eth0; # defined in /etc/hosts
+    listen example.com;
     server_name www.example.com;
     return 301 $scheme://example.com$request_uri;
 }
 
 server {
-    listen eth0; # defined in /etc/hosts
+    listen example.com;
     server_name example.com;
     root /home/$host;
 
     location = /favicon.ico {
+        empty_gif;
     }
 
     location / {
         fastcgi_pass unix:/var/run/php5-fpm.sock; #debian default
         include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME /home/$host/index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
     }
 }
 ```
@@ -160,8 +163,6 @@ server {
 ```
 ln -s /home/example.com/nginx.include /etc/nginx/conf.d/example.com.conf
 ```
-
-Create /home/example.com/favicon.ico:
 
 Put some html in:
 ```
@@ -174,7 +175,7 @@ Put some html in:
 
 Restart nginx
 
-Edit /etc/hosts if necessary
+Edit /etc/hosts on your local machine if necessary
 
 Visit:
 ```

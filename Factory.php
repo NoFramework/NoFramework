@@ -212,6 +212,11 @@ class Factory
         return str_replace(' ', '', ucwords(str_replace('_', ' ', $value)));
     }
 
+    protected function isStrictName($name)
+    {
+        return preg_match('~^[a-z_]+[0-9a-z_]+$~', $name);
+    }
+
     protected function autoNamespace($as, $class = false)
     {
         if (!$as or 0 === strpos($as, '.') or !$this->namespace) {
@@ -270,7 +275,7 @@ class Factory
 
     protected function __is_property($name)
     {
-        return preg_match('~^[a-z_]+[0-9a-z_]+$~', $name);
+        return $this->isStrictName($name);
     }
 
     protected function __property($name)

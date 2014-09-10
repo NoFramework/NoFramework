@@ -66,28 +66,33 @@ class Controller extends \NoFramework\Factory
 
     public function isAction($action)
     {
-        return method_exists($this, '__action_' . $action);
+        return
+            $this->isStrictName($action) and
+            method_exists($this, '__action_' . $action)
+        ;
     }
 
-    public function route($path, $method)
+    public function route($path)
     {
         $path = trim($path, '/');
-        $action = $path ? str_replace('/', '_', $path) : 'index';
-        $next = strtok($path, '/');
-        $next_path = strtok('');
+        $action = $path ?: 'index';
 
         if ($this->isAction($action)) {
             return (object)[
                 'controller' => $this,
                 'action' => $action,
-                'correct_path' => $this->path,
             ];
-        } elseif (
+        }
+
+        $next = strtok($path, '/');
+        $next_path = strtok('');
+
+        if (
             $next and
             isset($this->$next) and
             $this->$next instanceof self
         ) {
-            return $this->$next->route($next_path, $method);
+            return $this->$next->route($next_path);
         }
 
         return false;
@@ -219,6 +224,13 @@ class Controller extends \NoFramework\Factory
 
         if (!$this->template->exists($template)) {
             $this->error(404);
+        }
+
+        if (
+            'GET' === $this->request->method and
+            $this->path !== $this->request->path
+        ) {
+            $this->redirect($this->request->url($this->path), 301);
         }
 
         return ['template' => $template];
