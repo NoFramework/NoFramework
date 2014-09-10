@@ -2,235 +2,177 @@ NoFramework
 ===========
 (PHP 5 >= 5.5)
 
-NoFramework. No problem.
 
-- vim friendly
 - PSR-0 file autoloading
 - dependency injection
-- totally avoid globals and defines
-- no $this recursion (clear print_r)
 - lazy object creation
 - magic memoization
-- immutable objects
 - hierarchical configuration
-- can be used inside or/and in parallel whith any legacy code or framework
+- if no class is defined, try to guess it by namespace and property name
+    (since we have PSR-0)
+- virtual database
+- ORM
 
 
 How to use
 ===========
 
-
-Real life (require pecl yaml):
 ```php
 <?php
-require '/path/to/NoFramework/Config.php';
-NoFramework\Config::front()->application->start();
+require __DIR__ . '/../class/NoFramework/Config.php';
+
+// Read comments in Config.php for yaml examples
+// example.yaml should reside in '.config' up from script path
+// (i.e. '../.config' or '../../.config', and so on until found)
+
+(new NoFramework\Config)->parse('example.yaml')->application->start();
+
 ```
-The code above searches '.config/NoFramework/front.yaml' up from
-dirname(realpath($_SERVER['SCRIPT_FILENAME']))
-and starts configured application.
 
-
-The same, hiding static:
 ```php
 <?php
-require '/path/to/NoFramework/Config.php';
-(new NoFramework\Config)->withFile('front.yaml', function ($state) {
-    (new NoFramework\Factory($state))->application->start();
-});
+require __DIR__ . '/../class/NoFramework/Autoload.php';
+
+(new NoFramework\Autoload)->register();
+
+(new NoFramework\Autoload([
+    'namespace' => 'Example',
+    'path' => __DIR__ . '/../class/Example',
+])->register();
+
+(new Example\Factory([
+
+    // Object of class Example\Logger will be instantiated as property 'log'
+    // in object of class Example\Service instantiated in property 'service'.
+    // If Example\Service does not exist, then it will be Example\Factory
+
+    'service.log' => ['$new' => 'Logger'],
+
+]))->service->start();
+
 ```
 
-
-Configure for use inside legacy code.
-Put somewhere in the beginning:
 ```php
-require '/path/to/NoFramework/Config.php';
-NoFramework\Config::main();
-```
-Use as singleton anywhere inside legacy code:
-```php
-\NoFramework\Factory::main()->object1->object2->...->someMethod();
+class SomeClass
+{
+    use \NoFramework\Magic;
+
+    protected $default = 'default value';
+
+    // Memoization
+    // (same as default value, but calculated)
+    protected function __property_pid()
+    {
+        echo 'calculated' . PHP_EOL;
+
+        return posix_getpid();
+    }
+
+    public function callMe()
+    {
+        var_dump($this->pid);
+        var_dump($this->pid);
+        var_dump($this->pid);
+    }
+}
 ```
 
 
-Minimal without yaml:
+Minimal HTTP application
+===========
+
+Suppose we create project in /home/example.com
+
+Maybe you wish to create that user, not only a directory:
+```
+useradd example.com
+```
+
+Copy NoFramework and Twig into /home/example.com/class:
+```
+git clone https://github.com/NoFramework/NoFramework
+git clone https://github.com/fabpot/Twig
+```
+
+Create /home/example.com/.cache and make it writable for nginx user or for all
+
+Create /home/example.com/index.php:
 ```php
 <?php
 namespace NoFramework;
 
-require '/path/to/NoFramework/Autoload.php';
+$debug = true;
+
+ini_set('date.timezone', 'UTC');
+
+ini_set('display_startup_errors', $debug);
+ini_set('display_errors', $debug);
+
+require __DIR__ . '/class/NoFramework/Autoload.php';
 
 (new Autoload)->register();
 
-(new Factory([
+(new Autoload([
+    'namespace' => 'Twig',
+    'path' => __DIR__ . '/class/Twig/lib/Twig',
+    'separator' => '_',
+]))->register();
+
+(new Http\Application([
     'namespace' => __NAMESPACE__,
-    'log' => ['$new' => 'Log\Output']
-]))->with(function ($app) {
-    $app->log->write('ok');
-});
-```
-
-
-Dynamic injection and reuse:
-```php
-<?php
-namespace NoFramework;
-
-require '/path/to/NoFramework/Autoload.php';
-
-(new Autoload)->register();
-
-(new Factory([
-    'namespace' => __NAMESPACE__,
-    'auto' => true,
-    'log' => ['$new' => [
-        'output' => ['$new' => 'Log\Output']
+    'template' => ['$new' => [
+        'class' => 'Template\Twig',
+        'path' => __DIR__ . '/template',
+        'cache' => __DIR__ . '/.cache/twig',
+        'search_path' => 'landing',
+        'auto_reload' => $debug,
+        'debug' => $debug, // enable 'dump' function
     ]]
-]))->with(function ($root) {
-    # try this
-    #$root->log->newInstance('Log\Nil', 'output');
-
-    $root->newInstance([
-        'class' => 'Application',
-        'log' => ['$reuse' => 'log.output'],
-        'magic_factory' => ['$reuse' => 'name1.name2.name3']
-    ], 'app')->start(function ($app) {
-        $app->log->write(print_r($app, true));
-        $app->log->write(print_r($app->magic_factory, true));
-    });
-});
-```
-
-
-Tried to show some cases (require pecl yaml):
-```php
-<?php
-require '/path/to/NoFramework/Config.php';
-NoFramework\Config::random_name(__FILE__, __COMPILER_HALT_OFFSET__);
-
-// Any class is a module for NoFramework
-class Standard
-{
-    protected $magic;
-
-    public function getMagic()
-    {
-        return $this->magic;
-    }
-}
-
-class Magic
-{
-    use \NoFramework\MagicProperties;
-
-    protected function __property_memo()
-    {
-        return sprintf('I am default, but calculated: %d', mt_rand(0, 100));
-    }
-
-    protected function __property_rand(&$ttl)
-    {
-        $ttl = 1; // seconds, float or int
-        return mt_rand(0, 100);
-    }
-
-    protected function __property_emitter()
-    {
-        while (true) {
-            yield mt_rand(0, 100);
-        }
-    }
-
-    protected function __property_acceptor()
-    {
-        foreach (yield as $rand) {
-            echo $rand . PHP_EOL;
-        }
-    }
-}
-
-class Application extends \NoFramework\Application
-{
-    protected $log;
-    protected $autoload;
-    protected $period;
-    protected $lazy_config_path;
-    protected $lazy_read;
-    protected $injected_object;
-
-    protected function main()
-    {
-        file_put_contents($this->lazy_config_path, yaml_emit([
-            'rand' => mt_rand()
-        ]));
-
-        $this->log->output
-        -> write(print_r($this, true))
-        -> write(print_r($this->autoload, true))
-        #-> write(print_r($this, true))
-        -> write($this->period)
-        -> write(print_r($this->lazy_read, true))
-        #-> write(print_r($this, true))
-        -> write($this->reused)
-        #-> write(print_r($this, true))
-        -> write($this->injected_object->getMagic()->memo)
-        -> write(print_r($this, true));
-
-        $this->log->file
-        -> write($this->injected_object->getMagic()->memo);
-
-        #/*
-        while (true) {
-            $this->log->output
-            -> write($this->injected_object->getMagic()->rand);
-        }
-        #*/
-
-        #$m = $this->injected_object->getMagic();
-        #$m->acceptor->send($m->emitter);
-    }
-}
-
-NoFramework\Factory::random_name()->application->start();
-
-__halt_compiler();
-
-namespace: NoFramework
-
-ini_set: !ini_set
-  display_errors: 1
-  display_startup_errors: 1
-
-timezone: !setTimezone UTC
-
-autoload: !autoload
-  - NoFramework
-
-error_handler: !error_handler
-
-application: !new
-  class: \Application
-  log: !new
-    output: !new Log\Output
-    file: !new
-      class: Log\File
-      path: !script_path test.log
-  autoload: !reuse autoload
-  period: !period 1y 2m 3d t 4h 5m 6s
-  lazy_config_path: !config_path test_lazy.yaml
-  lazy_read: !read test_lazy.yaml
-  injected_object: !new
-    class: \Standard
-    magic: !new
-      class: \Magic
-      #memo: Try to uncomment me
-  reused: !reuse a.b.c
-
-a: !new
-  b: !new
-    c: Any object hierarchy
+]))->start();
 
 ```
 
-Visit http://noframework.com for more information.
+Create /home/example.com/nginx.include:
+
+```nginx
+server {
+    listen eth0; # defined in /etc/hosts
+    server_name example.com;
+
+    location = /favicon.ico {
+        root /home/$host;
+    }
+
+    location / {
+        fastcgi_pass unix:/var/www/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME /home/$host/index.php;
+        include fastcgi_params;
+    }
+}
+
+```
+
+```
+ln -s /home/example.com/nginx.include /etc/nginx/conf.d/example.com.conf
+```
+
+Create /home/example.com/favicon.ico:
+
+Put some html in:
+/home/example.com/template/landing/index.html.twig
+
+/home/example.com/template/landing/some_page.html.twig
+/home/example.com/template/landing/some_dir/some_other_page.html.twig
+... and so on
+
+Restart nginx
+
+Edit /etc/hosts if needed
+
+Visit:
+http://example.com/
+
+http://example.com/some_page/
+http://example.com/some_dir/some_other_page/
+... and so on
 
