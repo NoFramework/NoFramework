@@ -7,19 +7,17 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Http\Exception;
+namespace NoFramework\Http;
 
-class Redirect extends \RuntimeException
+class Redirect extends \Exception
 {
-    public function __construct ($location, $code = 302,
-        \Exception $previous = NULL)
-    {
-        parent::__construct($location, $code, $previous);
+    public function __construct ($location, $code = 302) {
+        parent::__construct($location, $code);
     }
 
-    final public function getLocation()
+    public function getLocation()
     {
-        return $this->getMessage();
+        return parent::getMessage();
     }
 }
 
