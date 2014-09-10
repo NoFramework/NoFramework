@@ -7,312 +7,291 @@
  * @link http://noframework.com
  */
 
-namespace NoFramework\Storage;
+namespace NoFramework\Database;
 
 class Mongo
 {
-    use \NoFramework\MagicProperties;
-    use Command;
+    use \NoFramework\Magic;
 
-    protected $user = false;
-    protected $password = false;
     protected $host = \MongoClient::DEFAULT_HOST;
-    protected $name = 'test';
-    protected $read_preference = \MongoClient::RP_PRIMARY_PREFERRED;
-    protected $read_preference_tags = [];
-    protected $is_connect = false;
-    protected $write_concern = 1;
+    protected $username = false;
+    protected $password = false;
+    protected $connect = false;
+    protected $readPreference = \MongoClient::RP_PRIMARY_PREFERRED;
+    protected $readPreferenceTags = [];
 
-    /**
-     * connectTimeoutMS
-     * fsync
-     * journal
-     * replicaSet
-     * socketTimeoutMS
-     * ssl
-     * wTimeoutMS
-     */
     protected $options = [];
 
-    protected function __property_auth_name()
+    protected function __property_db()
     {
-        return $this->name;
+        return 'test';
+    }
+
+    protected function __property_auth_db()
+    {
+        return $this->db;
     }
 
     protected function __property_connection()
     {
-        $auth = [];
+        $options = $this->options;
 
-        if (false !== $this->user) {
-            $auth['username'] = $this->user;
+        if (false !== $this->username) {
+            $options['username'] = $this->username;
         }
 
         if (false !== $this->password) {
-            $auth['password'] = $this->password;
+            $options['password'] = $this->password;
+        }
+
+        $options['db'] = $this->auth_db;
+
+        foreach ([
+            'connect',
+            'readPreference',
+            'readPreferenceTags',
+        ] as $property) {
+            $options[$property] = $this->$property;
         }
 
         return new \MongoClient(
             'mongodb://' . implode(',', (array)$this->host),
-            array_merge(
-                $auth,
-                [
-                    'connect' => $this->is_connect,
-                    'w' => $this->write_concern,
-                    'db' => $this->auth_name,
-                    'readPreference' => $this->read_preference,
-                    'readPreferenceTags' => $this->read_preference_tags,
-                ],
-                array_intersect_key(
-                    $this->options,
-                    array_flip([
-                        'connectTimeoutMS',
-                        'fsync',
-                        'journal',
-                        'replicaSet',
-                        'socketTimeoutMS',
-                        'ssl',
-                        'wTimeoutMS',
-                    ])
-                )
-            )
+            $options
         );
     }
 
-    protected function __property_db()
+    protected function __property_dbo()
     {
-        return $this->connection->selectDB($this->name);
+        return $this->connection->selectDB($this->db);
     }
 
-    public function getName()
+    public function __call($name, $arguments)
     {
-        return $this->name;
+        $command = &$arguments[0];
+
+        return $this->command(array_replace(
+            [$name => $this->popCollection($command, false)],
+            $command
+        ));
     }
 
-    protected function __command($command)
+    public function getGridFS($prefix = 'fs')
     {
-        $return = $this->db->command($command);
+        return $this->dbo->getGridFS($prefix ?: 'fs');
+    }
+
+    public function command($command)
+    {
+        $timeout = &$command['timeout'];
+        unset($command['timeout']);
+
+        $return = $this->dbo->command(
+            $command,
+            $timeout ? ['timeout' => $timeout] : []
+        );
 
         if (isset($return['errmsg'])) {
             throw new \MongoException($return['errmsg']);
         }
 
-        return array_merge(
-            isset($return['lastErrorObject'])
-            ? $return['lastErrorObject']
-            : [],
-            array_diff_key(
-                $return,
-                ['lastErrorObject' => 0]
-            )
-        );
-    }
+        $lastErrorObject = &$return['lastErrorObject'];
+        unset($return['lastErrorObject']);
 
-    protected function __command_collection($collection)
-    {
-        return $this->db->selectCollection($collection);
+        return $return + $lastErrorObject;
     }
 
     /**
-     * options:
-     *   where
+     * command:
+     *   collection
+     *   query
      *   fields
+     *   readPreference
+     *   readPreferenceTags
      *   sort
      *   skip
      *   limit
      *   hint
-     *   is_tailable
-     *   is_immortal
-     *   is_await_data
-     *   is_partial
-     *   is_exhaust
-     *   is_snapshot
+     *   tailable
+     *   immortal
+     *   awaitData
+     *   partial
+     *   snapshot
      *   timeout
-     *   batch_size
-     *   read_preference
-     *   read_preference_tags
+     *   batchSize
      *
      * return:
      *   MongoCursor
      */
-    protected function __command_find($collection, $option)
+    public function find($command = [])
     {
-        $cursor = $this->collection($collection)->find(
-            $option('where', []),
-            $option('fields', [])
+        $collection = $this->popCollection($command);
+
+        $query = &$command['query'];
+        $fields = &$command['fields'];
+        $readPreference = &$command['readPreference'];
+        $readPreferenceTags = &$command['readPreferenceTags'];
+
+        unset(
+            $command['query'],
+            $command['fields'],
+            $command['readPreference'],
+            $command['readPreferenceTags']
         );
 
-        if ($sort = $option('sort')) {
-            $cursor->sort($sort);
-        }
+        $cursor = $collection->find($query ?: [], $fields ?: []);
 
-        if ($skip = $option('skip')) {
-            $cursor->skip($skip);
-        }
-
-        if ($limit = $option('limit')) {
-            $cursor->limit($limit);
-        }
-
-        if ($index = $option('hint')) {
-            $cursor->hint($index);
-        }
-
-        if ($option('is_tailable')) {
-            $cursor->tailable();
-        }
-
-        if ($option('is_immortal')) {
-            $cursor->immortal();
-        }
-
-        if ($option('is_await_data')) {
-            $cursor->awaitData();
-        }
-
-        if ($option('is_partial')) {
-            $cursor->partial();
-        }
-
-        #if ($option('is_exhaust')) {
-        #    @$cursor->setFlag(6);
-        #}
-
-        if ($option('is_snapshot')) {
-            $cursor->snapshot();
-        }
-
-        if ($timeout = $option('timeout')) {
-            $cursor->timeout($timeout);
-        }
-
-        if ($batch_size = $option('batch_size')) {
-            $cursor->batchSize($batch_size);
-        }
-
-        $read_preference = $option('read_preference');
-        $read_preference_tags = $option('read_preference_tags');
-
-        if ($read_preference or $read_preference_tags) {
+        if ($readPreference or $readPreferenceTags) {
             $cursor->setReadPreference(
-                $read_preference ?: $this->read_preference,
-                $read_preference_tags ?: $this->read_preference_tags
+                $readPreference ?: $this->readPreference,
+                $readPreferenceTags ?: $this->readPreferenceTags
             );
+        }
+
+        foreach (array_filter($command) as $key => $value) {
+            $cursor->$key($value);
         }
 
         return $cursor;
     }
 
     /**
-     * options:
-     *   where
+     * command:
+     *   collection
+     *   query
      *   skip
      *   limit
      *
      * return:
      *   int
      */
-    protected function __command_count($collection, $option)
+    public function count($command = [])
     {
-        return $this->db->selectCollection($collection)->count(
-            $option('where', []),
-            $option('limit', 0),
-            $option('skip', 0)
-        );
+        $collection = $this->popCollection($command);
+
+        $query = &$command['query'];
+        $skip = &$command['skip'];
+        $limit = &$command['limit'];
+
+        return $collection->count($query ?: [], (int)$limit, (int)$skip);
     }
 
     /**
-     * options:
-     *   field
-     *   where
+     * command:
+     *   collection
+     *   key
+     *   query
+     *   timeout
      *
      * return:
      *   array of distinct values
      */
-    protected function __command_distinct($collection, $option)
+    public function distinct($command = [])
     {
-        return $this->__command([
-            'distinct' => $collection,
-            'key' => $option('field'),
-            'query' => $option('where', [])
-        ])['values'];
-    }
-
-    protected function writeOptions($option)
-    {
-        return $option([
-            'w',
-            'fsync',
-            'j',
-            'wtimeout',
-            'timeout',
-        ]);
+        return $this->command(array_replace(
+            [
+                'distinct' => $this->popCollection($command, false),
+                'key' => '_id',
+            ],
+            $command
+        ))['values'];
     }
 
     /**
-     * options:
+     * command:
+     *   collection
      *   set
-     *   continueOnError
-     *   writeOptions
+     *   w
+     *   fsync
+     *   j
+     *   wtimeout
+     *   timeout
      *
      * return:
-     *   inserted object(s)
+     *   inserted object
      */
-    protected function __command_insert($collection, $option)
+    public function insert($command = [])
     {
-        $set = $option('set');
+        $collection = $this->popCollection($command);
 
-        if (is_array($set) and array_keys($set) === range(0, count($set) - 1)) {
-            $this->collection($collection)->batchInsert(
-                $set,
-                array_merge(
-                    ['continueOnError' => $option('continueOnError', true)],
-                    $this->writeOptions($option)
-                )
-            );
-        } else {
-            $this->collection($collection)->insert(
-                $set,
-                $this->writeOptions($option)
-            );
-        }
+        $set = &$command['set'];
+        unset($command['set']);
+
+        $collection->insert($set ?: [], $command);
 
         return $set;
     }
 
     /**
-     * options:
-     *   where
-     *   is_multiple
-     *   is_isolated
-     *   writeOptions
+     * command:
+     *   collection
+     *   set
+     *   continueOnError
+     *   w
+     *   fsync
+     *   j
+     *   wtimeout
+     *   timeout
+     *
+     * return:
+     *   inserted objects
+     */
+    public function batchInsert($command = [])
+    {
+        $collection = $this->popCollection($command);
+
+        $set = &$command['set'];
+        unset($command['set']);
+
+        $collection->batchInsert($set, $command);
+
+        return $set;
+    }
+
+    /**
+     * command:
+     *   collection
+     *   query
+     *   justOne
+     *   w
+     *   fsync
+     *   j
+     *   wtimeout
+     *   timeout
      *
      * return:
      *   removed count
      */
-    protected function __command_remove($collection, $option)
+    public function remove($command = [])
     {
-        $where = $option('where', []);
-        $is_multiple = $option('is_multiple', true);
+        $collection = $this->popCollection($command);
 
-        if ($option('is_isolated') and $is_multiple) {
-            $where['$isolated'] = 1;
-        }
+        $query = &$command['query'];
+        unset($query);
 
-        return $this->collection($collection)->remove(
-            $where,
-            array_merge([
-                'justOne' => !$is_multiple
-            ], $this->writeOptions($option))
-        )['n'];
+        return $collection->remove($query ?: [], $command)['n'];
     }
 
     /**
-     * options:
+     * command:
+     *   collection
+     *   query
+     *   upsert
+     *   multiple
+     *   replace
+     *   w
+     *   fsync
+     *   j
+     *   wtimeout
+     *   timeout
      *   set
      *   inc
+     *   mul
      *   rename
-     *   setOnInsert
      *   unset
+     *   setOnInsert
+     *   min
+     *   max
+     *   currentDate
      *   bit
      *   addToSet
      *   pop
@@ -320,218 +299,137 @@ class Mongo
      *   pull
      *   pushAll
      *   push
-     *   where
-     *   is_upsert
-     *   is_multiple
-     *   is_isolated
-     *   writeOptions
      *
      * return:
      *   n
-     *   connectionId
-     *   err
-     *   ok
-     *   updatedExisting
+     *   nModified
      *   upserted
+     *   updatedExisting
      */
-    protected function __command_update($collection, $option)
+    public function update($command = [])
     {
-        $command = [];
-        
-        foreach ($option([
-            'inc',
-            'rename',
-            'setOnInsert',
-            'set',
-            'unset',
-            'bit',
-            'addToSet',
-            'pop',
-            'pullAll',
-            'pull',
-            'pushAll',
-            'push'
-        ]) as $key => $value) {
-            $command['$' . $key] = $value;
-        }
+        $collection = $this->popCollection($command);
 
-        $where = $option('where', []);
-        $is_multiple = $option('is_multiple', true);
+        $query = &$command['query'];
+        $update = &$command['replace'];
 
-        if ($option('is_isolated') and $is_multiple) {
-            $where['$isolated'] = 1;
-        }
-
-        return $this->collection($collection)->update(
-            $where,
-            $command,
-            array_merge([
-                'upsert' => $option('is_upsert', false),
-                'multiple' => $is_multiple,
-            ], $this->writeOptions($option))
+        unset(
+            $command['query'],
+            $command['replace']
         );
+
+        $options = array_intersect_key($command, array_flip([
+            'multiple',
+            'upsert',
+            'w',
+            'fsync',
+            'j',
+            'wtimeout',
+            'timeout',
+        ]));
+
+        $options += [
+            'multiple' => !$update,
+            'upsert' => false,
+        ];
+
+        if ($update) {
+            foreach ($update as $key => $value) {
+                if (0 === strpos($key, '$')) {
+                    throw new \MongoException(
+                        'document to replace can\'t have $ fields'
+                    );
+                }
+            }
+        } else {
+            foreach (array_diff_key($command, $options) as $key => $value) {
+                $update['$' . $key] = $value;
+            }
+        }
+
+        return $collection->update($query ?: [], $update, $options);
     }
 
     /**
-     * options:
+     * command:
+     *   collection
+     *   query
+     *   sort
+     *   new
+     *   fields
+     *   upsert
+     *   replace
+     *   remove
+     *   timeout
      *   set
      *   inc
+     *   mul
      *   rename
-     *   setOnInsert
      *   unset
+     *   setOnInsert
+     *   min
+     *   max
+     *   currentDate
      *   bit
      *   addToSet
      *   pop
+     *   pullAll
      *   pull
+     *   pushAll
      *   push
-     *   where
-     *   is_upsert
-     *   timeout
-     *   is_new
-     *   fields
-     *   sort
      *
      * return:
      *   n
-     *   connectionId
-     *   err
-     *   ok
-     *   updatedExisting
      *   upserted
+     *   updatedExisting
      *   value
      */
-    protected function __command_findAndModify($collection, $option)
+    public function findAndModify($command = [])
     {
-        $command = [];
+        $collection = $this->popCollection($command, false);
+
+        $out = array_intersect_key($command, array_flip([
+            'query',
+            'fields',
+            'sort',
+            'upsert',
+            'new',
+            'remove',
+            'timeout',
+        ]));
+
+        $out += [
+            'query' => [],
+            'new' => true,
+            'upsert' => false,
+        ];
+
+        $out['update'] = &$command['replace'];
+        unset($command['replace']);
+
+        if ($out['update']) {
+            foreach ($out['update'] as $key => $value) {
+                if (0 === strpos($key, '$')) {
+                    throw new \MongoException(
+                        'document to replace can\'t have $ fields'
+                    );
+                }
+            }
+        } else {
+            foreach (array_diff_key($command, $out) as $key => $value) {
+                $out['update']['$' . $key] = $value;
+            }
+        }
         
-        foreach ($option([
-            'inc',
-            'rename',
-            'setOnInsert',
-            'set',
-            'unset',
-            'bit',
-            'addToSet',
-            'pop',
-            'pull',
-            'push'
-        ]) as $key => $value) {
-            $command['$' . $key] = $value;
-        }
-
-        return $this->__command(
-            array_merge([
-                'findAndModify' => $collection,
-                'query' => $option('where', []),
-                'update' => $command,
-                'new' => $option('is_new', true),
-                'upsert' => $option('is_upsert')
-            ], $option([
-                'sort',
-                'fields'
-            ])),
-            $option([
-                'timeout'
-            ])
-        );
+        return $this->command(array_replace(
+            ['findAndModify' => $collection],
+            $out
+        ));
     }
 
     /**
-     * options:
-     *   set
-     *   where
-     *   is_upsert
-     *   is_multiple
-     *   is_isolated
-     *   writeOptions
-     *
-     * return:
-     *   n
-     *   connectionId
-     *   err
-     *   ok
-     *   updatedExisting
-     *   upserted
-     */
-    protected function __command_replace($collection, $option)
-    {
-        $set = $option('set', []);
-
-        foreach ($set as $field => $value) {
-            if (0 === strpos($field, '$')) {
-                throw new \MongoCursorException(
-                    'document to replace can\'t have $ fields'
-                );
-            }
-        }
-
-        $where = $option('where', []);
-        $is_multiple = $option('is_multiple', true);
-
-        if ($option('is_isolated') and $is_multiple) {
-            $where['$isolated'] = 1;
-        }
-
-        return $this->collection($collection)->update(
-            $where,
-            $set,
-            array_merge([
-                'upsert' => $option('is_upsert', false),
-                'multiple' => $is_multiple,
-            ], $this->writeOptions($option))
-        );
-    }
-
-    /**
-     * options:
-     *   set
-     *   where
-     *   is_upsert
-     *   timeout
-     *   is_new
-     *   fields
-     *   sort
-     *
-     * return:
-     *   n
-     *   connectionId
-     *   err
-     *   ok
-     *   updatedExisting
-     *   upserted
-     *   value
-     */
-    protected function __command_findAndReplace($collection, $option)
-    {
-        $set = $option('set', []);
-
-        foreach ($set as $field => $value) {
-            if (0 === strpos($field, '$')) {
-                throw new \MongoCursorException(
-                    'document to replace can\'t have $ fields'
-                );
-            }
-        }
-
-        return $this->__command(
-            array_merge([
-                'findAndModify' => $collection,
-                'query' => $option('where', []),
-                'update' => $set,
-                'new' => $option('is_new', true),
-                'upsert' => $option('is_upsert')
-            ], $option([
-                'sort',
-                'fields'
-            ])),
-            $option([
-                'timeout'
-            ])
-        );
-    }
-
-    /**
-     * options:
+     * command:
+     *   collection
      *   key
      *   w
      *   unique
@@ -543,36 +441,42 @@ class Mongo
      *   timeout
      *
      * return:
-     *   n
-     *   connectionId
-     *   err
-     *   ok
+     *   createdCollectionAutomatically
+     *   numIndexesBefore
+     *   numIndexesAfter
      */
-    protected function __command_ensureIndex($collection, $option)
+    public function ensureIndex($command = [])
     {
-        return $this->db->selectCollection($collection)->ensureIndex(
-            $option('key'),
-            $option([
-                'w',
-                'unique',
-                'dropDups',
-                'sparse',
-                'expireAfterSeconds',
-                'background',
-                'name',
-                'timeout'
-            ])
-        );
+        $collection = $this->popCollection($command);
+
+        $key = &$command['key'];
+        unset($command['key']);
+
+        return $collection->ensureIndex($key, $command);
     }
 
-    protected function __command_listCollections()
+    public function listCollections()
     {
         return array_map(
             function ($collection) {
                 return $collection->getName();
             },
-            $this->db->listCollections()
+            $this->dbo->listCollections()
         );
+    }
+
+    protected function popCollection(&$command, $is_object = true)
+    {
+        $out = &$command['collection'];
+        unset($command['collection']);
+
+        $out = $out ?: 'collection';
+
+        return
+            $is_object
+            ? $this->dbo->selectCollection($out)
+            : $out
+        ;
     }
 }
 
