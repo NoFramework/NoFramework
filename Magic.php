@@ -9,97 +9,85 @@
 
 namespace NoFramework;
 
-trait MagicProperties
+trait Magic
 {
     protected $__property = [];
 
-    public function __isset($property)
+    public function __isset($name)
     {
-        return isset($this->__property[$property]) or $this->isMagicProperty($property);
+        $name = 0 !== strpos($name, '$') ? $name : substr($name, 1);
+
+        return !property_exists($this, $name) and (
+            isset($this->__property[$name]) or
+            method_exists($this, '__property_' . $name) or
+            $this->__is_property($name)
+        );
     }
 
-    public function __get($property)
+    public function __get($name)
     {
-        if (isset($this->__property[$property])) {
-            return $this->__property[$property];
+        $is_resolve = 0 !== strpos($name, '$');
+        $property = $is_resolve ? $name : substr($name, 1);
 
-        } elseif ($this->isMagicProperty($property)) {
-            return $this->getMagicProperty($property);
+        if (!property_exists($this, $property)) {
+            $value = &$this->__property[$property];
 
-        } else {
-            trigger_error(sprintf('Cannot read property %s::$%s',
-                static::class,
-                $property
-            ), E_USER_ERROR);
-        }
-    }
+            if (!isset($value)) {
+                if (method_exists($this, '__property_' . $property)) {
+                    $value = $this->{'__property_' . $property}();
+                    $value = isset($value) ? $value : false;
 
-    public function __set($property, $value)
-    {
-        if (!isset($this->__property[$property])
-            and !$this->isMagicProperty($property)
-            and !property_exists($this, $property)
-        ) {
-            $this->$property = $value;
-
-        } else {
-            trigger_error(sprintf('Cannot write property %s::$%s',
-                static::class,
-                $property
-            ), E_USER_ERROR);
-        }
-    }
-
-    public function __unset($property)
-    {
-        if (isset($this->__property[$property])) {
-            unset($this->$property);
-
-        } else {
-            trigger_error(sprintf('Cannot remove property %s::$%s',
-                static::class,
-                $property
-            ), E_USER_ERROR);
-        }
-    }
-
-    protected function isMagicProperty($property)
-    {
-        return method_exists($this, '__property_' . $property);
-    }
-
-    protected function &getMagicProperty($property)
-    {
-        if (isset($this->__property['$cache'][$property])
-        and $this->__property['$cache'][$property]['expire'] > microtime(true)
-        ) {
-            $return = &$this->__property['$cache'][$property]['value'];
-
-        } else {
-            $ttl = false;
-            $value = $this->{'__property_' . $property}($ttl);
-
-            if (is_null($value)) {
-                trigger_error(sprintf(
-                    '%s::__property_%s() returned null',
-                    static::class,
-                    $property
-                ), E_USER_ERROR);
+                } else {
+                    $value = $this->__property($property);
+                }
             }
 
-            if (false === $ttl) {
-                $this->__property[$property] = $value;
-                $return = &$this->__property[$property];
+            if ($is_resolve and $value instanceof \Generator) {
+                $resolved = $value->current();
+
+                if (isset($resolved)) {
+                    return $resolved;
+
+                } else {
+                    trigger_error(sprintf('Property %s::$%s resolved to null',
+                        static::class,
+                        $name
+                    ), E_USER_NOTICE); // respect @
+                }
+            } elseif (isset($value)) {
+                return $value;
 
             } else {
-                $this->__property['$cache'][$property]['value'] = $value;
-                $this->__property['$cache'][$property]['expire']
-                     = $ttl + microtime(true);
-                $return = &$this->__property['$cache'][$property]['value'];
+                trigger_error(sprintf('Undefined property %s::$%s',
+                    static::class,
+                    $name
+                ), E_USER_NOTICE); // respect @
             }
+        } else {
+            trigger_error(sprintf('Cannot get property %s::$%s',
+                static::class,
+                $name
+            ), E_USER_ERROR);
         }
-
-        return $return;
     }
+
+    public function __set($name, $value)
+    {
+        trigger_error(sprintf('Cannot set property %s::$%s',
+            static::class,
+            $name
+        ), E_USER_ERROR);
+    }
+
+    public function __unset($name)
+    {
+        trigger_error(sprintf('Cannot unset property %s::$%s',
+            static::class,
+            $name
+        ), E_USER_ERROR);
+    }
+
+    protected function __is_property($name) {}
+    protected function __property($name) {}
 }
 
