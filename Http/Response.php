@@ -14,33 +14,38 @@ class Response
     public function status($status)
     {
         header(' ', true, $status);
+
         return $this;
     }
 
     public function redirect($location, $status = 302)
     {
         header('Location: ' . $location, true, $status);
+
         return $this;
     }
 
-    public function cookie($cookie)
+    public function cookie($name, $value = [])
     {
-        if (!isset($cookie['name'])) {
-            throw new \InvalidArgumentException('Cookie name is not set');
-        }
+        $value = is_array($value) ? $value : ['value' => $value];
 
-        $get = function ($option, $default = '') use ($cookie) {
-            return isset($cookie[$option]) ? $cookie[$option] : $default;
-        };
+        $value += [
+            'value' => '',
+            'expire' => 0,
+            'path' => '',
+            'domain' => '',
+            'is_secure' => false,
+            'is_httponly' => false
+        ];
 
         setcookie(
-            $cookie['name'],
-            $get('value'),
-            $get('expire', 0),
-            $get('path'),
-            $get('domain'),
-            $get('is_secure', false),
-            $get('is_httponly', false)
+            $name,
+            $value['value'],
+            $value['expire'],
+            $value['path'],
+            $value['domain'],
+            $value['is_secure'],
+            $value['is_httponly']
         );
 
         return $this;
@@ -48,7 +53,7 @@ class Response
 
     public function header($name, $value = null)
     {
-        if (is_null($value)) {
+        if (!isset($value)) {
             header_remove($name);
             return $this;
         }
@@ -56,7 +61,7 @@ class Response
         $is_replace = true;
 
         foreach ((array)$value as $value_item) {
-            header(sprintf('%s: %s', $name, $value_item), $is_replace);
+            header("$name: $value_item", $is_replace);
             $is_replace = false;
         }
 
@@ -68,9 +73,10 @@ class Response
         return headers_sent();
     }
 
-    public function payload($payload)
+    public function output($data)
     {
-        echo $payload;
+        echo $data;
+
         return $this;
     }
 }
