@@ -10,7 +10,7 @@
 namespace NoFramework\Http;
 
 use NoFramework\Template\Twig as Template;
-use NoFramework\Model\Collection as Model;
+use NoFramework\Model\Collection as Db;
 
 class Controller extends \NoFramework\Factory
 {
@@ -41,9 +41,9 @@ class Controller extends \NoFramework\Factory
         return '/';
     }
 
-    protected function __property_model()
+    protected function __property_db()
     {
-        return new Model;
+        return new Db;
     }
 
     public function __call($method, $argument)
@@ -199,7 +199,7 @@ class Controller extends \NoFramework\Factory
                 'template' => $this->{'$template'},
                 'request' => $this->{'$request'},
                 'session' => $this->{'$session'},
-                'model' => $this->{'$model'},
+                'db' => $this->{'$db'},
             ];
         }
 
@@ -208,7 +208,7 @@ class Controller extends \NoFramework\Factory
         return parent::__resolve_new($value, $as);
     }
 
-    protected function __action_index($option = [])
+    protected function __action_index()
     {
         $path = (
             isset($this->template->search_path)

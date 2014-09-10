@@ -80,7 +80,7 @@ class Request extends \ArrayObject
             isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/'
         );
 
-        $state = parse_url($url);
+        $state += parse_url($url);
 
         $state += array_intersect_key($state, array_flip([
             'url',
