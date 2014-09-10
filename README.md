@@ -144,9 +144,9 @@ server {
     }
 
     location / {
-        fastcgi_pass unix:/var/www/php-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME /home/$host/index.php;
+        fastcgi_pass unix:/var/run/php5-fpm.sock; #debian default
         include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME /home/$host/index.php;
     }
 }
 
@@ -159,20 +159,24 @@ ln -s /home/example.com/nginx.include /etc/nginx/conf.d/example.com.conf
 Create /home/example.com/favicon.ico:
 
 Put some html in:
+```
 /home/example.com/template/landing/index.html.twig
 
 /home/example.com/template/landing/some_page.html.twig
 /home/example.com/template/landing/some_dir/some_other_page.html.twig
 ... and so on
+```
 
 Restart nginx
 
 Edit /etc/hosts if needed
 
 Visit:
+```
 http://example.com/
 
 http://example.com/some_page/
 http://example.com/some_dir/some_other_page/
 ... and so on
+```
 
