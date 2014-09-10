@@ -9,362 +9,273 @@
 
 namespace NoFramework;
 
-class Factory implements \ArrayAccess
+class Factory
 {
-    use MagicProperties {
-        isMagicProperty as isMagicPropertyCallback;
-        getMagicProperty as getMagicPropertyCallback;
+    use Magic;
+
+    protected function __property_this()
+    {
+        yield $this;
     }
 
-    protected $namespace;
-    protected $propagate;
-    protected $local_reuse;
-    protected $auto;
-
-    private $id;
-    private static $root = [];
-
-    public function __construct($state = null, $id = null)
+    protected function __property_use()
     {
-        foreach ((array)$state as $property => $value) {
-            if ('id' !== $property and property_exists($this, $property)) {
-                if ($this->getOperator($value)) {
-                    unset($this->$property);
-                } else {
-                    $this->$property = $value;
-                    unset($state[$property]);
-                }
+        return $this->{'$this'};
+    }
+
+    protected function __property_global()
+    {
+        return $this->{'$this'};
+    }
+
+    protected function __property_namespace()
+    {
+        return substr(static::class, 0, strrpos(static::class, '\\'));
+    }
+
+    public function __construct($state = [])
+    {
+        unset($state['this']);
+
+        $this->setState(
+            $this,
+            $this->resolveState(array_replace(
+                array_fill_keys(['use', 'global', 'namespace'], null),
+                $state
+            ))
+        );
+    }
+
+    public function __call($name, $arguments)
+    {
+        if (method_exists($this, '__resolve_' . $name)) {
+            return call_user_func_array(
+                [$this, '__resolve_' . $name],
+                $arguments
+            );
+        }
+
+        trigger_error(sprintf(
+            'Call to undefined method %s::%s()',
+            static::class,
+            $name
+        ), E_USER_ERROR);
+    }
+
+    public function setState($object, $state)
+    {
+        $accessProperty = $this->accessProperty($object);
+
+        if ($magic = $accessProperty('__property')) {
+            $magic = [
+                'property' => $magic,
+                'value' => $magic->getValue($object),
+            ];
+        }
+
+        $is_modify_magic = method_exists($object, '__modify');
+
+        foreach ($state as $key => $value) {
+            if ($is_modify_magic) {
+                $object->__modify($key, $value, $this);
+            }
+
+            $default = $accessProperty($key);
+
+            if (
+                ($default or !$magic) and
+                $value instanceof \Generator
+            ){
+                $value = $value->current();
+            }
+
+            if ($default) {
+                $default->setValue($object, $value);
+
+            } elseif ($magic and isset($value)) {
+                $magic['value'][$key] = $value;
+
+            } elseif ($magic) {
+                unset($magic['value'][$key]);
+
+            } elseif (isset($value)) {
+                $object->$key = $value;
+
+            } else {
+                unset($object->$key);
             }
         }
 
-        if ($state) {
-            $this['$unresolved'] = $state;
-        }
-
-        $this->id = $id ? (array)$id : [spl_object_hash($this)];
-
-        if (!isset(self::$root[$this->id[0]])) {
-            self::$root[$this->id[0]] = $this;
-        }
-    }
-
-    public function with($closure)
-    {
-        $closure($this);
-        return $this;
-    }
-
-    public function newInstance($state = null, $id = null)
-    {
-        if (!$id) {
-            $object = $this->__operator_new($state);
-
-        } elseif (!isset($this->__property[$id])) {
-            $this['$unresolved'][$id] = ['$new' => $state];
-            $object = $this->$id;
-
-        } else {
-            trigger_error(sprintf(
-                'Property \'%s\' is already set',
-                $id
-            ), E_USER_ERROR);
+        if ($magic) {
+            $magic['property']->setValue($object, $magic['value']);
         }
 
         return $object;
     }
 
-    public function offsetExists($property)
+    protected function accessProperty($object)
     {
-        return isset($this->$property);
-    }
+        $reflection = new \ReflectionClass($object);
 
-    public function &offsetGet($property)
-    {
-        if (isset($this->__property[$property]) or '$' === $property[0]) {
-            $return = &$this->__property[$property];
+        return function ($key) use ($reflection) {
+            if ($reflection->hasProperty($key)) {
+                $out = $reflection->getProperty($key);
 
-        } else {
-            $return = $this->getMagicProperty($property);
-        }
+                if (!$out->isStatic()) {
+                    $out->setAccessible(true);
 
-        return $return;
-    }
-
-    public function offsetSet($property, $value)
-    {
-        $this->__property[$property] = $value;
-    }
-
-    public function offsetUnset($property)
-    {
-        unset($this->__property[$property]);
-    }
-
-    public function release()
-    {
-        unset(self::$root[$this->id[0]]);
-    }
-
-    public function parent()
-    {
-        $id = $this->id;
-        array_pop($id);
-
-        if ($id) {
-            $return = self::$root[array_shift($id)];
-
-            foreach ($id as $property) {
-                $return = $return->$property;
+                    return $out;
+                }
             }
 
-            return $return;
-        } else {
-            trigger_error(sprintf(
-                'No parent for %s',
-                implode('.', $this->id)
-            ), E_USER_NOTICE);
-        }
+            return false;
+        };
     }
 
-    public function reuse($value)
-    {
-        return $this->__operator_reuse($value);
-    }
-
-    public function localId($implode = '.')
-    {
-        return substr(
-            implode($implode, array_slice($this->id, 1)),
-            strlen($this->local_reuse) + 1
-        );
-    }
-
-    public static function __callStatic($id, $parameter)
-    {
-        if (!isset(self::$root[$id])) {
-            new static(isset($parameter[0]) ? $parameter[0] : [], $id);
-
-        } elseif (isset($parameter[0])) {
-            trigger_error(sprintf(
-                'Factory \'%s\' is already set',
-                $id
-            ), E_USER_WARNING);
-        }
-
-        return self::$root[$id];
-    }
-
-    protected function getOperator($value)
+    protected function popResolver(&$value)
     {
         if (is_array($value)) {
-            foreach ($value as $operator => $ignored) {
-                return 0 === strpos($operator, '$') ? $operator : false;
+            $new = reset($value);
+            $out = key($value);
+
+            if (0 === strpos($out, '$')) {
+                $value = $new;
+
+                return substr($out, 1);
             }
         }
 
         return false;
     }
 
-    protected function resolve($value, $id = false)
+    protected function resolveLater($resolver, $value, $as)
     {
-        while ($operator = $this->getOperator($value)) {
-            $value =
-                '$' === $operator
-                ? $value[$operator](array_merge(
-                    array_slice($this->id, 1),
-                    $id ? (array)$id : []
-                ))
-                : $this->{'__operator_' . substr($operator, 1)}
-                    ($value[$operator], $id);
-        }
-
-        return $value;
-    }
-
-    protected function isMagicProperty($property)
-    {
-        return $this->auto
-            or isset($this['$unresolved'][$property])
-            or $this->isMagicPropertyCallback($property);
-    }
-
-    protected function &getMagicProperty($property)
-    {
-        if (isset($this['$unresolved'][$property])) {
-            $this->__property[$property] = $this['$unresolved'][$property];
-
-            if (1 === count($this['$unresolved'])) {
-                unset($this['$unresolved']);
-
-            } else {
-                unset($this['$unresolved'][$property]);
-            }
-
-            $value = &$this->__property[$property];
-
-        } elseif (!$this->auto or $this->isMagicPropertyCallback($property)) {
-            $value = $this->getMagicPropertyCallback($property);
-
-        } else {
-            $this->__property[$property] = ['$new' =>
-                true === $this->auto ? [] : $this->auto
-            ];
-            $value = &$this->__property[$property];
-        }
-
-        $value = $this->resolve($value, $property);
-
-        return $value;
-    }
-
-    protected function __operator_reuse($value, $id = false)
-    {
-        $value = 0 === strpos($value, '.')
-            ? substr($value, 1)
-            : ($this->local_reuse ? $this->local_reuse . '.' : '') . $value;
-
-        if (isset(self::$root[$this->id[0]])) {
-            $return = self::$root[$this->id[0]];
-
-            foreach (explode('.', $value) as $property) {
-                if (!is_object($return) or !isset($return->$property)) {
-                    return null;
-                }
-
-                $return = $return->$property;
-            }
-
-            return $return;
-
-        } else {
-            trigger_error(sprintf(
-                'Cannot not reuse \'%s\', factory root is released',
-                $value
-            ), E_USER_NOTICE);
-        }
-    }
-
-    protected function setClassInstanceProperty($class, $property, $value)
-    {
-        $property = $class->getProperty($property);
-        $property->setAccessible(true);
-        $property->setValue($class->instance, $value);
-        return $this;
-    }
-
-    protected function __operator_new($state = null, $id = null)
-    {
-        $state = $state
-            ? is_string($state) ? ['class' => $state] : (array)$state
-            : [];
-
-        $class = new \ReflectionClass(
-            isset($state['class'])
-            ? ('\\' === $state['class'][0]
-              ? substr($state['class'], 1)
-              : ($this->namespace ? $this->namespace . '\\' : '')
-                    . $state['class']
-            )
-            : static::class
+        yield $this->{'__resolve_' . $resolver}(
+            $value instanceof \Generator ? $value->current() : $value,
+            $as
         );
+    }
 
-        $class->instance = $class->newInstanceWithoutConstructor();
+    protected function resolveState($state, $as = '')
+    {
+        foreach ($state as $key => $value) {
+            $first = strtok($key, '.');
 
+            if ($key !== $first) {
+                unset($state[$key]);
+
+                if ($last = strtok('')) {
+                    $state[$first]['$new'][$last] = $value;
+
+                } else {
+                    $state[$first] = $value;
+                }
+            }
+        }
+
+        $as = $as ? rtrim($as, '.') . '.' : '';
+
+        foreach ($state as $key => $value) {
+            yield $key =>
+                ($resolver = $this->popResolver($value))
+                ? $this->resolveLater($resolver, $value, $as . $key)
+                : $value
+            ;
+        }
+    }
+
+    protected function normalizeClass($class)
+    {
+        return
+            $class
+            ? (
+                0 === strpos($class, '\\')
+                ? substr($class, 1)
+                : ($this->namespace ? $this->namespace . '\\' : '') . $class
+            )
+            : false
+        ;
+    }
+
+    protected function popClass(&$state, $is_normalize = true)
+    {
+        $state = is_string($state) ? ['class' => $state] : $state;
+
+        $class = &$state['class'];
         unset($state['class']);
 
-        $last_id = (array)$id;
-        $last_id = array_pop($last_id);
+        return $is_normalize ? $this->normalizeClass($class) : $class;
+    }
 
-        foreach ((array)$this->propagate as $property) {
-            if (!isset($state[$property]) and $property !== $last_id) {
-                $state[$property] = $this->$property;
-            }
+    protected function camelCase($value)
+    {
+        return str_replace(' ', '', ucwords(str_replace('_', ' ', $value)));
+    }
+
+    protected function autoNamespace($as, $class = false)
+    {
+        if (!$as or 0 === strpos($as, '.') or !$this->namespace) {
+            return false;
         }
-        
-        $id = $id ? array_merge($this->id, (array)$id) : null;
 
-        if ($class->instance instanceof self) {
-            foreach ([
-                'namespace',
-                'propagate',
-                'local_reuse',
-                'auto',
-            ] as $property) {
-                if (!isset($state[$property]) and !is_null($this->$property)) {
-                    $state[$property] = $this->$property;
-                }
-            }
+        return
+            $this->namespace . '\\' .
+            implode('\\', array_map([$this, 'camelCase'], explode('.', $as))) .
+            ($class ? '\\' . $class : '')
+        ;
+    }
 
-            $class->instance->__construct($state, $id);
+    protected function __resolve_new($value = null, $as = null)
+    {
+        $auto = $this->autoNamespace($as);
 
-        } else {
-            if (isset($state['construct'])) {
-                if ($class->constructor = $class->getConstructor()) {
-                    $class->constructor->parameter = [];
+        $class =
+            $this->popClass($value) ?:
+            (class_exists($auto) ? $auto : get_class($this->use))
+        ;
 
-                    foreach ((array)$state['construct'] as $value) {
-                        $class->constructor->parameter[] =
-                            $this->resolve($value);
-                    }
-                }
+        if (is_a($class, self::class, true)) {
+            $value['global'] = $this->{'$global'};
+            $value['use'] = $this->{'$use'};
 
-                unset($state['construct']);
-            }
+            return new $class($value + ['namespace' => $auto]);
+        }
 
-            if ($state) {
-                $is_injectable = $class->hasProperty('__property');
-                $intersect = [];
+        return $this->setState(
+            new $class,
+            $this->resolveState($value, $as ?: '.')
+        );
+    }
 
-                foreach ($state as $property => $value) {
-                    $is_unresolved = (bool)$this->getOperator($value);
+    protected function __resolve_newRoot($value = null)
+    {
+        $class = $this->popClass($value, false);
+        $value['global'] = $this->{'$global'};
 
-                    if (!$is_injectable and $is_unresolved) {
-                        $value = $this->resolve($value, $property);
-                    }
+        return $class ? new $class($value) : new self($value);
+    }
 
-                    if ($class->hasProperty($property)) {
-                        if ($is_injectable and $is_unresolved) {
-                            $intersect[$property] = true;
+    protected function __resolve_use($value = null)
+    {
+        $object = $this->use;
 
-                        } else {
-                            $this->setClassInstanceProperty(
-                                $class,
-                                $property,
-                                $value
-                            );
-                            unset($state[$property]);
-                        }
-                    } elseif (!$is_injectable) {
-                        $class->instance->$property = $value;
-                        unset($state[$property]);
-                    }
-                }
-
-                if ($is_injectable and $state) {
-                    $this->setClassInstanceProperty(
-                        $class,
-                        '__property',
-                        new self(array_merge([
-                            'namespace' => $this->namespace,
-                            'local_reuse' => $this->local_reuse
-                        ], $state), $id)
-                    );
-
-                    foreach ($intersect as $property => $ignored) {
-                        unset($class->instance->$property);
-                    }
-                }
-            }
-
-            if (isset($class->constructor)) {
-                $class->constructor->invokeArgs(
-                    $class->instance,
-                    $class->constructor->parameter
-                );
+        if ($value) {
+            foreach (explode('.', $value) as $key) {
+                $object = $object->$key;
             }
         }
 
-        return $class->instance;
+        return $object;
+    }
+
+    protected function __is_property($name)
+    {
+        return preg_match('~^[a-z_]+[0-9a-z_]+$~', $name);
+    }
+
+    protected function __property($name)
+    {
+        return $this->new(null, $name);
     }
 }
 
