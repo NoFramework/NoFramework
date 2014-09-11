@@ -134,12 +134,49 @@ class Collection extends \NoFramework\Factory
 
             } elseif (abs(array_sum($fields)) !== count($fields)) {
                 throw new \InvalidArgumentException(
-                    'You cannot currently mix including and excluding fields'
+                    'You cannot mix including and excluding fields'
                 );
             }
         }
 
         return $fields;
+    }
+
+    public function includeFields($source, $patch)
+    {
+        if (!$source or !$patch) {
+            return $source;
+        }
+
+        $source = $this->normalizeFields($source);
+        $patch = is_string($patch) ? [$patch] : $patch;
+
+        return
+            current($source) < 0
+            ? array_diff_key($source, array_flip($patch))
+            : $source + array_fill_keys($patch, 1)
+        ;
+    }
+
+    public function excludeFields($source, $patch)
+    {
+        if (!$patch) {
+            return $source;
+        }
+
+        $patch = is_string($patch) ? [$patch] : $patch;
+
+        if (!$source) {
+            return array_fill_keys($patch, -1);
+        }
+
+        $source = $this->normalizeFields($source);
+
+        return
+            current($source) < 0
+            ? $source + array_fill_keys($patch, -1)
+            : array_diff_key($source, array_flip($patch))
+        ;
     }
 
     protected function __resolve_new($value = null, $as = null)
