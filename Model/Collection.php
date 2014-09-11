@@ -126,6 +126,22 @@ class Collection extends \NoFramework\Factory
         return (object)$out;
     }
 
+    public function normalizeFields($fields)
+    {
+        if ($fields) {
+            if (array_keys($fields) === range(0, count($fields) - 1)) {
+                return array_fill_keys($fields, 1);
+
+            } elseif (abs(array_sum($fields)) !== count($fields)) {
+                throw new \InvalidArgumentException(
+                    'You cannot currently mix including and excluding fields'
+                );
+            }
+        }
+
+        return $fields;
+    }
+
     protected function __resolve_new($value = null, $as = null)
     {
         $auto = $this->autoNamespace($as, 'Collection');
