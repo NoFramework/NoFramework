@@ -94,7 +94,7 @@ git clone https://github.com/NoFramework/NoFramework
 git clone https://github.com/fabpot/Twig
 ```
 
-Create /home/example.com/.cache and make it writable for nginx user or for all
+Create /home/example.com/.cache and make it writable for php-fpm user or for all
 
 Create /home/example.com/index.php:
 ```php

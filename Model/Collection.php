@@ -9,13 +9,18 @@
 
 namespace NoFramework\Model;
 
-use NoFramework\Database\Memory as Database;
+use NoFramework\Database\Memory as Memory;
 
 class Collection extends \NoFramework\Factory
 {
     protected function __property_db()
     {
-        return new Database;
+        return new Memory;
+    }
+
+    protected function __property_memory()
+    {
+        return new Memory;
     }
 
     protected function __property_fs()
@@ -126,57 +131,38 @@ class Collection extends \NoFramework\Factory
         return (object)$out;
     }
 
-    public function normalizeFields($fields)
+    public function patchFields($fields, $patch)
     {
-        if ($fields) {
-            if (array_keys($fields) === range(0, count($fields) - 1)) {
-                return array_fill_keys($fields, 1);
+        $patch = is_string($patch) ? [$patch] : $patch;
 
-            } elseif (abs(array_sum($fields)) !== count($fields)) {
+        if (array_keys($patch) === range(0, count($patch) - 1)) {
+            $patch = array_fill_keys($patch, true);
+        }
+
+        $include = array_filter($patch);
+        $exclude = array_diff_key($patch, $include);
+
+        $fields = $this->memory->normalizeFields($fields);
+
+        if (current($fields)) {
+            $fields = array_diff_key($fields, $exclude) + $include;
+
+            if (!$fields) {
                 throw new \InvalidArgumentException(
-                    'You cannot mix including and excluding fields'
+                    'Projection cannot be patched to empty'
                 );
             }
+
+            $fields += ['_id' => false];
+
+            if ($fields['_id'] and count($fields) !== 1) {
+                unset($fields['_id']);
+            }
+        } else {
+            $fields = array_diff_key($fields, $include) + $exclude;
         }
 
         return $fields;
-    }
-
-    public function includeFields($source, $patch)
-    {
-        if (!$source or !$patch) {
-            return $source;
-        }
-
-        $source = $this->normalizeFields($source);
-        $patch = is_string($patch) ? [$patch] : $patch;
-
-        return
-            current($source) < 0
-            ? array_diff_key($source, array_flip($patch))
-            : $source + array_fill_keys($patch, 1)
-        ;
-    }
-
-    public function excludeFields($source, $patch)
-    {
-        if (!$patch) {
-            return $source;
-        }
-
-        $patch = is_string($patch) ? [$patch] : $patch;
-
-        if (!$source) {
-            return array_fill_keys($patch, -1);
-        }
-
-        $source = $this->normalizeFields($source);
-
-        return
-            current($source) < 0
-            ? $source + array_fill_keys($patch, -1)
-            : array_diff_key($source, array_flip($patch))
-        ;
     }
 
     protected function __resolve_new($value = null, $as = null)

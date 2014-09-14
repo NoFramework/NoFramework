@@ -30,9 +30,9 @@ class Memory implements \IteratorAggregate
             $this->limit ?: null,
             true
         ) as $_id => $item) {
-            yield $_id => array_replace(
-                ['_id' => $_id],
-                $this->applyFields($item, $this->fields)
+            yield $_id => $this->applyFields(
+                array_replace(['_id' => $_id], $item),
+                $this->fields
             );
         }
     }
@@ -407,6 +407,45 @@ class Memory implements \IteratorAggregate
         return $return;
     }
 
+    public function applyFields($item, $fields)
+    {
+        return
+            current($fields)
+            ? array_intersect_key($item, $fields)
+            : array_diff_key($item, $fields)
+        ;
+    }
+
+    public function normalizeFields($fields)
+    {
+        if (!$fields) {
+            return [];
+        }
+
+        $count = count($fields);
+
+        if (array_keys($fields) === range(0, $count - 1)) {
+            return array_fill_keys($fields, true) + ['_id' => true];
+        }
+
+        if ($count_include = count(array_filter($fields))) {
+            $fields += ['_id' => true];
+
+            if (!$fields['_id']) {
+                unset($fields['_id']);
+                $count--;
+            }
+
+            if ($count !== $count_include) {
+                throw new \InvalidArgumentException(
+                    'Projection cannot have a mix of inclusion and exclusion'
+                );
+            }
+        }
+
+        return $fields;
+    }
+
     protected function query($query = [])
     {
         $data = [];
@@ -559,43 +598,6 @@ class Memory implements \IteratorAggregate
                 $setOnInsert ?: []
             )
         ]);
-    }
-
-    protected function applyFields($item, $fields)
-    {
-        if (!$fields) {
-            return $item;
-        }
-
-        return
-            current($fields) < 0
-
-            ? array_diff_key(
-                $item,
-                array_diff_key($fields, ['_id' => null])
-            )
-
-            : array_intersect_key(
-                $item,
-                $fields + ['_id' => 1]
-            )
-        ;
-    }
-
-    protected function normalizeFields($fields)
-    {
-        if ($fields) {
-            if (array_keys($fields) === range(0, count($fields) - 1)) {
-                return array_fill_keys($fields, 1);
-
-            } elseif (abs(array_sum($fields)) !== count($fields)) {
-                throw new \InvalidArgumentException(
-                    'You cannot currently mix including and excluding fields'
-                );
-            }
-        }
-
-        return $fields;
     }
 }
 
