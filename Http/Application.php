@@ -63,7 +63,7 @@ class Application extends Controller
         if ($route = $this->route($this->request->path)) {
             $route
                 ->controller
-                ->{$route->action}($option)
+                ->{$route->action}($route->option + $option)
                 ->respond($this->response)
             ;
         } else {

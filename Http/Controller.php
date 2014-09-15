@@ -81,6 +81,7 @@ class Controller extends \NoFramework\Factory
             return (object)[
                 'controller' => $this,
                 'action' => $action,
+                'option' => [],
             ];
         }
 
