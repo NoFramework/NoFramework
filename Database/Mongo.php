@@ -97,7 +97,7 @@ class Mongo
         $lastErrorObject = &$return['lastErrorObject'];
         unset($return['lastErrorObject']);
 
-        return $return + $lastErrorObject;
+        return $return + ($lastErrorObject ?: []);
     }
 
     /**
