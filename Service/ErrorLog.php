@@ -1,10 +1,12 @@
 <?php
-/**
- * NoFramework
+
+/*
+ * This file is part of the NoFramework package.
  *
- * @author Roman Zaykin <roman@noframework.com>
- * @license http://www.opensource.org/licenses/mit-license.php MIT
- * @link http://noframework.com
+ * (c) Roman Zaykin <roman@noframework.com>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
  */
 
 namespace NoFramework\Service;
