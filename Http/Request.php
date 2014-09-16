@@ -191,15 +191,15 @@ class Request extends \ArrayObject
         $path = &$query['path'];
         unset($query['path']);
 
-        $is_inherit = 0 !== strpos($path, '!');
-        $path = $is_inherit ? $path : substr($path, 1);
-
         $path = strtok($path, '?');
 
         if ($path_query = strtok('')) {
             parse_str($path_query, $add_query);
             $query += $add_query;
         }
+
+        $is_inherit = array_key_exists('#inherit', $query);
+        unset($query['#inherit']);
 
         if (0 !== strpos($path, '/')) {
             $path = ($base_path ?: $this->path) . $path;
