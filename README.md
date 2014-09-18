@@ -19,7 +19,7 @@ How to use
 
 ```php
 <?php
-require __DIR__ . '/../class/NoFramework/Config.php';
+require __DIR__ . '/../class.php/NoFramework/Config.php';
 
 // Read comments in Config.php for yaml examples
 // example.yaml should reside in '.config' up from script path
@@ -31,13 +31,13 @@ require __DIR__ . '/../class/NoFramework/Config.php';
 
 ```php
 <?php
-require __DIR__ . '/../class/NoFramework/Autoload.php';
+require __DIR__ . '/../class.php/NoFramework/Autoload.php';
 
 (new NoFramework\Autoload)->register();
 
 (new NoFramework\Autoload([
     'namespace' => 'Example',
-    'path' => __DIR__ . '/../class/Example',
+    'path' => __DIR__ . '/../class.php/Example',
 ])->register();
 
 (new Example\Factory([
@@ -88,7 +88,7 @@ Maybe you wish to create that user, not only a directory:
 useradd example.com
 ```
 
-Copy NoFramework and Twig into /home/example.com/class:
+Copy NoFramework and Twig into /home/example.com/class.php directory:
 ```
 git clone https://github.com/NoFramework/NoFramework
 git clone https://github.com/fabpot/Twig
@@ -108,13 +108,13 @@ ini_set('date.timezone', 'UTC');
 ini_set('display_startup_errors', $debug);
 ini_set('display_errors', $debug);
 
-require __DIR__ . '/class/NoFramework/Autoload.php';
+require __DIR__ . '/class.php/NoFramework/Autoload.php';
 
 (new Autoload)->register();
 
 (new Autoload([
     'namespace' => 'Twig',
-    'path' => __DIR__ . '/class/Twig/lib/Twig',
+    'path' => __DIR__ . '/class.php/Twig/lib/Twig',
     'separator' => '_',
 ]))->register();
 

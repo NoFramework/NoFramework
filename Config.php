@@ -21,7 +21,7 @@ class Config
      */
     protected $path = [
         'start' => '',
-        'class' => 'class',
+        'class' => 'class.php',
         'config' => '.config',
         'cache' => '.cache',
         'local' => '.local',
