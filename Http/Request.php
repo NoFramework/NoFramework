@@ -158,8 +158,7 @@ class Request extends \ArrayObject
             $key = &$arguments[0];
             $default = &$arguments[1];
 
-            return isset($this->$name[$key]) ? $this->$name[$key] : $default;
-
+            return array_replace([$key => $default], $this->$name)[$key];
         } else {
             trigger_error(
                 sprintf('Call to undefined method %s::%s.',
