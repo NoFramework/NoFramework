@@ -57,7 +57,9 @@ class Mongo
         }
 
         return new \MongoClient(
-            'mongodb://' . implode(',', (array)$this->host),
+            'mongodb://' . implode(',', array_map(function ($host) {
+                return trim($host);
+            }, (array)$this->host)),
             $options
         );
     }
