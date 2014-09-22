@@ -16,12 +16,26 @@ class Mongo
     use \NoFramework\Magic;
 
     protected $host = \MongoClient::DEFAULT_HOST;
+    protected $replicaSet = false;
     protected $username = false;
     protected $password = false;
     protected $connect = false;
-    protected $readPreference = \MongoClient::RP_PRIMARY_PREFERRED;
+    protected $readPreference = "nearest";
     protected $readPreferenceTags = [];
+    protected $secondaryAcceptableLatencyMS = 15;
+    protected $connectTimeoutMS = 60000; // 60 sec
+    protected $socketTimeoutMS = 30000; // 30 sec
+    protected $socketContext = [];
 
+    /**
+     * authMechanism
+     * authSource
+     * gssapiServiceName
+     * ssl
+     * journal / fsync
+     * w
+     * wTimeoutMS
+     */
     protected $options = [];
 
     protected function __property_db()
@@ -38,7 +52,7 @@ class Mongo
     {
         $options = $this->options;
 
-        if (false !== $this->username) {
+        if ($this->username) {
             $options['username'] = $this->username;
         }
 
@@ -46,22 +60,31 @@ class Mongo
             $options['password'] = $this->password;
         }
 
-        $options['db'] = $this->auth_db;
-
-        foreach ([
-            'connect',
-            'readPreference',
-            'readPreferenceTags',
-        ] as $property) {
-            $options[$property] = $this->$property;
+        if ($this->replicaSet) {
+            $options['replicaSet'] = $this->replicaSet;
         }
 
-        return new \MongoClient(
-            'mongodb://' . implode(',', array_map(function ($host) {
-                return trim($host);
-            }, (array)$this->host)),
-            $options
+        $options['db'] = $this->auth_db;
+        $options['connect'] = $this->connect;
+        $options['connectTimeoutMS'] = $this->connectTimeoutMS;
+        $options['socketTimeoutMS'] = $this->socketTimeoutMS;
+        $options['secondaryAcceptableLatencyMS'] =
+            $this->secondaryAcceptableLatencyMS;
+
+        $host = str_replace(' ', '', implode(',', (array)$this->host));
+
+        $connection = new \MongoClient(
+            'mongodb://' . $host,
+            $options,
+            $this->socketContext ? ['context' => $this->socketContext] : []
         );
+
+        $connection->setReadPreference(
+            $this->readPreference,
+            $this->readPreferenceTags
+        );
+
+        return $connection;
     }
 
     protected function __property_dbo()
