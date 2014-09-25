@@ -32,25 +32,21 @@ class Mongo
      * authSource
      * gssapiServiceName
      * ssl
+     * db ; authentication database
      * journal / fsync
      * w
      * wTimeoutMS
      */
     protected $options = [];
 
-    protected function __property_db()
+    protected function __property_name()
     {
         return 'test';
     }
 
-    protected function __property_auth_db()
+    protected function __property_client()
     {
-        return $this->db;
-    }
-
-    protected function __property_connection()
-    {
-        $options = $this->options;
+        $options = $this->options + ['db' => $this->name];
 
         if ($this->username) {
             $options['username'] = $this->username;
@@ -64,7 +60,6 @@ class Mongo
             $options['replicaSet'] = $this->replicaSet;
         }
 
-        $options['db'] = $this->auth_db;
         $options['connect'] = $this->connect;
         $options['connectTimeoutMS'] = $this->connectTimeoutMS;
         $options['socketTimeoutMS'] = $this->socketTimeoutMS;
@@ -73,23 +68,23 @@ class Mongo
 
         $host = str_replace(' ', '', implode(',', (array)$this->host));
 
-        $connection = new \MongoClient(
+        $client = new \MongoClient(
             'mongodb://' . $host,
             $options,
             $this->socketContext ? ['context' => $this->socketContext] : []
         );
 
-        $connection->setReadPreference(
+        $client->setReadPreference(
             $this->readPreference,
             $this->readPreferenceTags
         );
 
-        return $connection;
+        return $client;
     }
 
-    protected function __property_dbo()
+    protected function __property_db()
     {
-        return $this->connection->selectDB($this->db);
+        return $this->client->selectDB($this->name);
     }
 
     public function __call($name, $arguments)
@@ -102,9 +97,9 @@ class Mongo
         ));
     }
 
-    public function getGridFS($prefix = 'fs')
+    public function getGridFS($prefix = null)
     {
-        return $this->dbo->getGridFS($prefix ?: 'fs');
+        return $this->db->getGridFS($prefix ?: 'fs');
     }
 
     public function command($command)
@@ -112,7 +107,7 @@ class Mongo
         $timeout = &$command['timeout'];
         unset($command['timeout']);
 
-        $return = $this->dbo->command(
+        $return = $this->db->command(
             $command,
             $timeout ? ['timeout' => $timeout] : []
         );
@@ -488,7 +483,7 @@ class Mongo
             function ($collection) {
                 return $collection->getName();
             },
-            $this->dbo->listCollections()
+            $this->db->listCollections()
         );
     }
 
@@ -501,7 +496,7 @@ class Mongo
 
         return
             $is_object
-            ? $this->dbo->selectCollection($out)
+            ? $this->db->selectCollection($out)
             : $out
         ;
     }

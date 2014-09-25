@@ -61,11 +61,6 @@ class Controller extends \NoFramework\Factory
         return parent::__call($method, $argument);
     }
 
-    public function __filter_url($query)
-    {
-        return $this->url($query);
-    }
-
     public function isAction($action)
     {
         return
@@ -151,20 +146,7 @@ class Controller extends \NoFramework\Factory
     
     protected function template($name, $filters = [], $type = 'file')
     {
-        foreach (get_class_methods($this) as $method) {
-            if (0 === strpos($method, '__filter_')) {
-                $filter = substr($method, strlen('__filter_'));
-                $filters[$filter] = [$this, $method];
-
-            } elseif (0 === strpos($method, '__widget_')) {
-                $filter = substr($method, strlen('__widget_'));
-
-                $filters['widget_' . $filter] = [
-                    [$this, $method],
-                    'is_safe' => ['html']
-                ];
-            }
-        }
+        $filters += ['url' => [$this, 'url']];
 
         return $this->template->load($name, $filters, $type);
     }

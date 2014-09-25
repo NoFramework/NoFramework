@@ -15,6 +15,8 @@ use NoFramework\Database\Memory as Memory;
 
 class Collection extends \NoFramework\Factory
 {
+    protected function __property_name() {}
+
     protected function __property_db()
     {
         return new Memory;
@@ -27,12 +29,7 @@ class Collection extends \NoFramework\Factory
 
     protected function __property_fs()
     {
-        return $this->db->getGridFS($this->collection);
-    }
-
-    protected function __property_collection()
-    {
-        return '';
+        return $this->db->getGridFS($this->name);
     }
 
     public function __call($name, $arguments)
@@ -45,7 +42,7 @@ class Collection extends \NoFramework\Factory
         }
 
         $command = &$arguments[0];
-        $command['collection'] = $this->collection;
+        $command['collection'] = $this->name;
 
         return $this->db->$name($command);
     }
@@ -88,7 +85,7 @@ class Collection extends \NoFramework\Factory
         $orm = &$command['orm'];
         unset($command['orm']);
 
-        $command['collection'] = $this->collection;
+        $command['collection'] = $this->name;
 
         $out = $this->cursor($this->db->find($command));
 
@@ -111,7 +108,7 @@ class Collection extends \NoFramework\Factory
         $orm = &$command['orm'];
         unset($command['orm']);
 
-        $command['collection'] = $this->collection;
+        $command['collection'] = $this->name;
 
         $out = $this->db->insert($command);
 
@@ -123,7 +120,7 @@ class Collection extends \NoFramework\Factory
         $orm = &$command['orm'];
         unset($command['orm']);
 
-        $command['collection'] = $this->collection;
+        $command['collection'] = $this->name;
 
         $out = $this->db->findAndModify($command);
 
@@ -178,8 +175,8 @@ class Collection extends \NoFramework\Factory
 
         if (is_a($class, self::class, true)) {
             if ($as and 0 !== strpos($as, '.')) {
-                $collection = $this->collection ? $this->collection . '.' : '';
-                $value += ['collection' => $collection . $as];
+                $name = $this->name ? $this->name . '.' : '';
+                $value += ['name' => $name . $as];
             }
 
             $value += ['db' => $this->{'$db'}];
