@@ -24,14 +24,15 @@ class Cursor implements \IteratorAggregate
         return $return === $this->data ? $this : $return;
     }
 
+    protected function each($item)
+    {
+        return $this->orm ? $this->collection->item($item) : $item;
+    }
+
     public function getIterator()
     {
         foreach ($this->data as $_id => $item) {
-            yield $_id =>
-                $this->orm
-                ? $this->collection->item($item)
-                : $item
-            ;
+            yield $_id => $this->each($item);
         }
     }
 
