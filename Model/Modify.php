@@ -26,7 +26,6 @@ trait Modify
         $command['query'] = ['_id' => $this->_id];
         $command['upsert'] = false;
         $command['new'] = true;
-        $command['orm'] = false;
 
         $collection = $this->{'$$collection'}->current();
 

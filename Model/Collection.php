@@ -22,11 +22,6 @@ class Collection extends \NoFramework\Factory
         return new Memory;
     }
 
-    protected function __property_memory()
-    {
-        return new Memory;
-    }
-
     protected function __property_fs()
     {
         return $this->db->getGridFS($this->name);
@@ -47,14 +42,37 @@ class Collection extends \NoFramework\Factory
         return $this->db->$name($command);
     }
 
-    public function item($state = [])
+    public function cursor($data, $mapper = null)
     {
-        $class = $this->normalizeClass('Item');
+        return new Cursor($data, $mapper ?: $this);
+    }
 
-        if (!class_exists($class)) {
-            $class = $this->use->normalizeClass('Item');
+    public function map($map, $value)
+    {
+        if (is_callable($map)) {
+            return call_user_func($map, $value, $this);
         }
 
+        if (is_string($map)) {
+            if (0 === strpos($map, 'field:')) {
+                $fields = explode('.', substr($map, strlen('field:')));
+
+                foreach ($fields as $field) {
+                    $value = $value[$field];
+                }
+
+                return $value;
+            }
+
+            $map = ['class' => $map];
+        }
+
+        return $this->item($map + $value);
+    }
+
+    public function item($state = [])
+    {
+        $class = $this->popClass($state) ?: $this->normalizeClass('Item');
         $state['$collection'] = $this->{'$this'};
 
         return $this->setState(
@@ -63,34 +81,24 @@ class Collection extends \NoFramework\Factory
         );
     }
 
-    public function cursor($data)
-    {
-        $class = $this->normalizeClass('Cursor');
-
-        if (!class_exists($class)) {
-            $class = $this->use->normalizeClass('Cursor');
-        }
-
-        return $this->setState(
-            class_exists($class) ? new $class : new Cursor,
-            [
-                'data' => is_array($data) ? new Memory($data) : $data,
-                'collection' => $this
-            ]
-        );
-    }
-
     public function find($command = [])
     {
-        $orm = &$command['orm'];
-        unset($command['orm']);
+        $map = &$command['map'];
+        unset($command['map']);
+
+        $key = &$command['key'];
+        unset($command['key']);
 
         $command['collection'] = $this->name;
 
         $out = $this->cursor($this->db->find($command));
 
-        if ($orm) {
-            $out->orm();
+        if ($map) {
+            $out->map($map);
+        }
+
+        if ($key) {
+            $out->key($key);
         }
 
         return $out;
@@ -99,35 +107,77 @@ class Collection extends \NoFramework\Factory
     public function findOne($command = [])
     {
         $command['limit'] = 1;
+        unset($command['key']);
 
-        return $this->find($command)->one();
+        $virtual = &$command['virtual'];
+        unset($command['virtual']);
+
+        $out = $this->find($command)->one();
+
+        if (false === $out and $virtual) {
+            $query = &$command['query'];
+
+            $out =
+                $query
+                ? array_filter($query, function ($match) {
+                    if (is_array($match)) {
+                        foreach ($match as $collate => $ignored) {
+                            if (0 === strpos($collate, '$')) {
+                                return false;
+                            }
+                        }
+                    }
+
+                    return true;
+                })
+                : []
+            ;
+
+            if ($map = &$command['map']) {
+               $out = $this->map($map, $out);
+            }
+        }
+
+        return $out;
     }
 
     public function insert($command = [])
     {
-        $orm = &$command['orm'];
-        unset($command['orm']);
+        $map = &$command['map'];
+        unset($command['map']);
 
         $command['collection'] = $this->name;
 
         $out = $this->db->insert($command);
 
-        return $orm ? $this->item($out) : $out;
+        if ($map) {
+            $out = $this->map($map, $out);
+        }
+
+        return $out;
     }
 
     public function findAndModify($command = [])
     {
-        $orm = &$command['orm'];
-        unset($command['orm']);
+        $map = &$command['map'];
+        unset($command['map']);
 
         $command['collection'] = $this->name;
 
         $out = $this->db->findAndModify($command);
 
         $value = &$out['value'];
-        $value = $value ? ($orm ? $this->item($value) : $value) : false;
+
+        if ($map) {
+            $value = $this->map($map, $value);
+        }
 
         return (object)$out;
+    }
+
+    public function normalizeFields($fields)
+    {
+        return (new Memory)->normalizeFields($fields);
     }
 
     public function patchFields($fields, $patch)
@@ -141,7 +191,7 @@ class Collection extends \NoFramework\Factory
         $include = array_filter($patch);
         $exclude = array_diff_key($patch, $include);
 
-        $fields = $this->memory->normalizeFields($fields);
+        $fields = $this->normalizeFields($fields);
 
         if (current($fields)) {
             $fields = array_diff_key($fields, $exclude) + $include;

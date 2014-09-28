@@ -14,8 +14,15 @@ namespace NoFramework\Model;
 class Cursor implements \IteratorAggregate
 {
     protected $data;
-    protected $collection;
-    protected $orm;
+    protected $mapper;
+    protected $map;
+    protected $key;
+
+    public function __construct($data, $mapper = false)
+    {
+        $this->data = $data;
+        $this->mapper = $mapper;
+    }
 
     public function __call($name, $arguments)
     {
@@ -24,21 +31,29 @@ class Cursor implements \IteratorAggregate
         return $return === $this->data ? $this : $return;
     }
 
-    protected function each($item)
-    {
-        return $this->orm ? $this->collection->item($item) : $item;
-    }
-
     public function getIterator()
     {
         foreach ($this->data as $_id => $item) {
-            yield $_id => $this->each($item);
+            $key = $this->key ? $item[$this->key] : $_id;
+
+            if ($this->map) {
+                $item = $this->mapper->map($this->map, $item);
+            }
+
+            yield $key => $item;
         }
     }
 
-    public function orm($orm = true)
+    public function map($map = 'Item')
     {
-        $this->orm = $orm;
+        $this->map = $map;
+
+        return $this;
+    }
+
+    public function key($key)
+    {
+        $this->key = $key;
 
         return $this;
     }
