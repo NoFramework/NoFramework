@@ -54,10 +54,14 @@ class Collection extends \NoFramework\Factory
         }
 
         if (is_string($map)) {
-            if (0 === strpos($map, 'field:')) {
-                $fields = explode('.', substr($map, strlen('field:')));
+            if (0 === strpos($map, 'column:')) {
+                $fields = explode('.', substr($map, strlen('column:')));
 
                 foreach ($fields as $field) {
+                    if (!isset($value[$field])) {
+                        return null;
+                    }
+
                     $value = $value[$field];
                 }
 

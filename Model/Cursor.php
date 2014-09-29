@@ -17,6 +17,8 @@ class Cursor implements \IteratorAggregate
     protected $mapper;
     protected $map;
     protected $key;
+    protected $skip;
+    protected $limit;
 
     public function __construct($data, $mapper = false)
     {
@@ -33,7 +35,18 @@ class Cursor implements \IteratorAggregate
 
     public function getIterator()
     {
+        if (0 === $this->limit) {
+            return;
+        }
+
+        $count = 0;
+
         foreach ($this->data as $_id => $item) {
+            if ($count < $this->skip) {
+                $count++;
+                continue;
+            }
+
             $key = $this->key ? $item[$this->key] : $_id;
 
             if ($this->map) {
@@ -41,7 +54,37 @@ class Cursor implements \IteratorAggregate
             }
 
             yield $key => $item;
+
+            $count++;
+
+            if ($this->limit and $count >= $this->skip + $this->limit) {
+                break;
+            }
         }
+    }
+
+    public function slice($skip = null, $limit = null)
+    {
+        if ($skip < 0 or $limit < 0) {
+            $count = $this->count(true);
+
+            if ($skip < 0) {
+                $skip += $count;
+            }
+
+            $skip = $skip < 0 ? 0 : $skip;
+
+            if ($limit < 0) {
+                $limit += $count - $skip;
+            }
+
+            $limit = $limit < 0 ? 0 : $limit;
+        }
+
+        $this->skip = $skip;
+        $this->limit = $limit;
+
+        return $this;
     }
 
     public function map($map = 'Item')
@@ -49,6 +92,11 @@ class Cursor implements \IteratorAggregate
         $this->map = $map;
 
         return $this;
+    }
+
+    public function column($column)
+    {
+        return $this->map('column:' . $column);
     }
 
     public function key($key)
@@ -70,6 +118,60 @@ class Cursor implements \IteratorAggregate
     public function toArray()
     {
         return iterator_to_array($this);
+    }
+
+    public function reduce($callable, $initial = null)
+    {
+        $result = $initial;
+
+        foreach ($this as $item) {
+            $result = $callable($result, $item);
+        }
+
+        return $result;
+    }
+
+    public function countDistinct($fields)
+    {
+        $out = [];
+
+        $register = function ($field, $value) use (&$out) {
+            $key = is_array($value) ? serialize($value) : (string)$value;
+            $distinct = &$out[$field][$key];
+            $distinct['value'] = $value;
+            $count = &$distinct['count'];
+            $count++;
+        };
+
+        foreach ($this->data as $item) {
+            foreach ((array)$fields as $field) {
+                $value = $this->mapper->map('column:' . $field, $item);
+
+                if (
+                    is_array($value) and
+                    array_keys($value) === range(0, count($value) - 1)
+                ) {
+                    foreach ($value as $value_item) {
+                        $register($field, $value_item);
+                    }
+                } else {
+                    $register($field, $value);
+                }
+            }
+        }
+
+        return $out;
+    }
+
+    public function print_r($return = false)
+    {
+        $out = '';
+
+        foreach ($this as $key => $item) {
+            $out .= print_r(['key' => $key, 'item' => $item], $return);
+        }
+
+        return $return ? $out : true;
     }
 }
 
