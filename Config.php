@@ -221,8 +221,8 @@ class Config
      *   - namespace: Twig
      *     path: Twig/lib/Twig
      *     separator: _
-     *   - AnyEntry
-     *   - class: AnyEntry\Autoload\SomeNonPsr0
+     *   - Example
+     *   - class: Example\Autoload\SomeNonPsr0
      */
     protected function __resolve_autoload($value)
     {
@@ -302,7 +302,7 @@ class Config
     /**
      * db: !new
      *   class: NoFramework\Database\Mongo
-     *   db: example
+     *   name: example
      *   username: example
      *   password: secret
      */

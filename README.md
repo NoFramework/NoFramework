@@ -12,6 +12,7 @@ NoFramework
     (since we have PSR-0)
 - virtual database
 - ORM
+- only 24 not very fat classes
 
 
 How to use
