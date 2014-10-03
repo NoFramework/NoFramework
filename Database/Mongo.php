@@ -209,8 +209,6 @@ class Mongo
      */
     public function distinct($command = [])
     {
-        $command = is_string($command) ? ['key' => $command] : $command;
-
         return $this->command(array_replace(
             [
                 'distinct' => $this->popCollection($command, false),

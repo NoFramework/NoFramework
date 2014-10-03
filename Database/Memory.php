@@ -146,8 +146,6 @@ class Memory implements \IteratorAggregate
      */
     public function distinct($command = [])
     {
-        $command = is_string($command) ? ['key' => $command] : $command;
-
         $key = &$command['key'];
         $query = &$command['query'];
 

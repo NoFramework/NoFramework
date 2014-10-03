@@ -179,6 +179,14 @@ class Collection extends \NoFramework\Factory
         return (object)$out;
     }
 
+    public function distinct($command = [])
+    {
+        $command = is_string($command) ? ['key' => $command] : $command;
+        $command['collection'] = $this->name;
+
+        return $this->db->distinct($command);
+    }
+
     public function normalizeFields($fields)
     {
         return (new Memory)->normalizeFields($fields);
