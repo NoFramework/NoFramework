@@ -288,7 +288,7 @@ class Mongo
         $collection = $this->popCollection($command);
 
         $query = &$command['query'];
-        unset($query);
+        unset($command['query']);
 
         return $collection->remove($query ?: [], $command)['n'];
     }
