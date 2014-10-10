@@ -411,6 +411,10 @@ class Memory implements \IteratorAggregate
 
     public function applyFields($item, $fields)
     {
+        if (!$fields) {
+            return $item;
+        }
+
         return
             current($fields)
             ? array_intersect_key($item, $fields)
