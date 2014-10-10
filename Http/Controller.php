@@ -193,7 +193,7 @@ class Controller extends \NoFramework\Factory
         return parent::__resolve_new($value, $as);
     }
 
-    protected function __action_index($option = [])
+    protected function __action_index($option)
     {
         $path = (
             isset($this->template->search_path)
