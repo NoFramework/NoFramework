@@ -59,8 +59,6 @@ class View extends \ArrayObject
             return $response;
         }
 
-        $headers = $this->headers + ['X-Powered-By' => null];
-
         if ($content_type = $this->getContentType()) {
             $headers['Content-Type'] = $content_type .
                 ($this->charset ? '; charset=' . $this->charset : '');
