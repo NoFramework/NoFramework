@@ -17,8 +17,6 @@ class Cursor implements \IteratorAggregate
     protected $mapper;
     protected $map;
     protected $key;
-    protected $skip;
-    protected $limit;
 
     public function __construct($data, $mapper = false)
     {
@@ -35,18 +33,7 @@ class Cursor implements \IteratorAggregate
 
     public function getIterator()
     {
-        if (0 === $this->limit) {
-            return;
-        }
-
-        $count = 0;
-
         foreach ($this->data as $_id => $item) {
-            if ($count < $this->skip) {
-                $count++;
-                continue;
-            }
-
             $key = $this->key ? $item[$this->key] : $_id;
 
             if ($this->map) {
@@ -54,37 +41,7 @@ class Cursor implements \IteratorAggregate
             }
 
             yield $key => $item;
-
-            $count++;
-
-            if ($this->limit and $count >= $this->skip + $this->limit) {
-                break;
-            }
         }
-    }
-
-    public function slice($skip = null, $limit = null)
-    {
-        if ($skip < 0 or $limit < 0) {
-            $count = $this->count(true);
-
-            if ($skip < 0) {
-                $skip += $count;
-            }
-
-            $skip = $skip < 0 ? 0 : $skip;
-
-            if ($limit < 0) {
-                $limit += $count - $skip;
-            }
-
-            $limit = $limit < 0 ? 0 : $limit;
-        }
-
-        $this->skip = $skip;
-        $this->limit = $limit;
-
-        return $this;
     }
 
     public function map($map = 'Item')
