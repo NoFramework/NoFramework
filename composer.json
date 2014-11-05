@@ -5,12 +5,12 @@
     "keywords": [
         "NoFramework",
         "php",
-        "psr-0"
+        "psr-0",
         "dependency injection",
         "orm",
         "memoization",
         "virtual database",
-        "minimal"
+        "minimal",
     ],
     "homepage": "http://noframework.com",
     "license": "MIT",
@@ -19,5 +19,5 @@
     ],
     "require": {
         "php": ">=5.5"
-    }
+    },
 }
