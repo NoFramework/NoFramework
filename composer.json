@@ -20,7 +20,7 @@
             "email": "roman@noframework.com",
             "homepage": "http://noframework.com",
             "role": "Lead Developer"
-        },
+        }
     ],
     "require": {
         "php": ">=5.5"
