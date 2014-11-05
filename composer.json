@@ -1,5 +1,5 @@
 {
-    "name": "NoFramework/NoFramework",
+    "name": "noframework/noframework",
     "type": "library",
     "description": "Clear fast flexible lightweight php 5.5 framework",
     "keywords": [
