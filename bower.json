@@ -1,0 +1,23 @@
+{
+  "name": "NoFramework",
+  "version": "0.0.3",
+  "homepage": "http://noframework.com",
+  "authors": [
+    "Roman Zaykin <roman@noframework.com>"
+  ],
+  "description": "Clear fast flexible lightweight php 5.5 framework",
+  "keywords": [
+    "NoFramework",
+    "php",
+    "psr-0"
+    "dependency injection",
+    "orm",
+    "memoization",
+    "virtual database",
+    "minimal",
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+  ]
+}
