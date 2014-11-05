@@ -9,7 +9,7 @@
   "keywords": [
     "NoFramework",
     "php",
-    "psr-0"
+    "psr-0",
     "dependency injection",
     "orm",
     "memoization",
