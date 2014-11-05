@@ -14,10 +14,10 @@
     "orm",
     "memoization",
     "virtual database",
-    "minimal",
+    "minimal"
   ],
   "license": "MIT",
   "ignore": [
-    "**/.*",
+    "**/.*"
   ]
 }
