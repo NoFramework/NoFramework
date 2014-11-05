@@ -15,7 +15,12 @@
     "homepage": "http://noframework.com",
     "license": "MIT",
     "authors": [
-        "Roman Zaykin <roman@noframework.com>"
+        {
+            "name": "Roman Zaykin",
+            "email": "roman@noframework.com",
+            "homepage": "http://noframework.com",
+            "role": "Lead Developer"
+        },
     ],
     "require": {
         "php": ">=5.5"
