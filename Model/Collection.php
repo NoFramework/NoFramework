@@ -93,9 +93,14 @@ class Collection extends \NoFramework\Factory
         $key = &$command['key'];
         unset($command['key']);
 
+        $data = &$command['data'];
+        unset($command['data']);
+
+        $db = $data ? new Memory($data) : $this->db;
+
         $command['collection'] = $this->name;
 
-        $out = $this->cursor($this->db->find($command));
+        $out = $this->cursor($db->find($command));
 
         if ($map) {
             $out->map($map);
