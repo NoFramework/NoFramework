@@ -21,7 +21,7 @@ class View extends \ArrayObject
     public $is_silent = false;
     public $template;
     public $block;
-    public $is_add_success = true;
+    public $success = true;
 
     public function __construct($state = [], $data = [])
     {
@@ -110,8 +110,8 @@ class View extends \ArrayObject
 
     public function json($data, $options = 0)
     {
-        if ($this->is_add_success) {
-            $data += ['success' => true];
+        if (isset($this->success)) {
+            $data += ['success' => $this->success];
         }
 
         return json_encode($data, $options);
