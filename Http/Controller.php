@@ -134,6 +134,10 @@ class Controller extends \NoFramework\Factory
             $state['template'] = &$data['template'];
             unset($data['template']);
 
+            if (array_key_exists('success', $data)) {
+                $state['success'] = $data['success'];
+            }
+
             if (is_string($state['template'])) {
                 $state['template'] = $this->template($state['template']);
             }
