@@ -19,44 +19,43 @@ trait Modify
 
     public function modify($command = [])
     {
-        if (false === $this->_id) {
-            return false;
+        if ($this->_id) {
+            $command['query'] = ['_id' => $this->_id];
+        } else {
+            $command['query'] = ['_id' => ['$exists' => false]];
         }
 
-        $command['query'] = ['_id' => $this->_id];
-        $command['upsert'] = false;
+        $command += ['upsert' => true];
         $command['new'] = true;
 
         $collection = $this->{'$$collection'}->current();
 
         $result = $collection->findAndModify($command);
 
-        if (!$result->n) {
-            return false;
+        if (isset($result->value)) {
+            $state = $result->value;
+
+            $unset = &$command['unset'];
+            $rename = &$command['rename'];
+
+            if ($unset or $rename) {
+                $restore = array_fill_keys(
+                    array_keys(array_replace($unset ?: [], $rename ?: [])),
+                    null
+                );
+
+                $state += array_intersect_key(
+                    (new \ReflectionClass($this))->getDefaultProperties(),
+                    $restore
+                );
+                
+                $state += $restore;
+            }
+
+            $collection->setState($this, $state);
         }
 
-        $out = $result->value;
-
-        $unset = &$command['unset'];
-        $rename = &$command['rename'];
-
-        if ($unset or $rename) {
-            $restore = array_fill_keys(
-                array_keys(array_replace($unset ?: [], $rename ?: [])),
-                null
-            );
-
-            $out += array_intersect_key(
-                (new \ReflectionClass($this))->getDefaultProperties(),
-                $restore
-            );
-            
-            $out += $restore;
-        }
-
-        $collection->setState($this, $out);
-
-        return true;
+        return $result;
     }
 
     public function __set($name, $value)
