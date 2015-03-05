@@ -32,26 +32,40 @@ class View extends \ArrayObject
         parent::__construct($data);
     }
 
-    public function respond($response)
+    public function render()
     {
         if ($this->is_silent) {
-            return $response;
+            return '';
         }
-
-        $this->respondHead($response);
 
         $data = $this->getArrayCopy();
 
         if ($this->template and !is_array($this->block)) {
-            return $response->output($this->template($data, $this->block));
+            return $this->template($data, $this->block);
 
         } elseif ($this->template) {
-            $data = array_map(function ($block) use ($data) {
+            return array_map(function ($block) use ($data) {
                 return $this->template($data, $block);
             }, $this->block);
         }
 
-        return $response->output($this->json($data));
+        return $data;
+    }
+
+    public function respond($response)
+    {
+        $this->respondHead($response);
+
+        $data = $this->render();
+
+        if (!$data) {
+            return $response;
+
+        } elseif (is_array($data)) {
+            return $response->output($this->json($data));
+        }
+
+        return $response->output($data);
     }
 
     public function respondHead($response)
