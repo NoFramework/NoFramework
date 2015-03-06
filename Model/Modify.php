@@ -28,6 +28,9 @@ trait Modify
         $command += ['upsert' => true];
         $command['new'] = true;
 
+        $ensure = &$command['ensure'];
+        unset($command['ensure']);
+
         $collection = $this->{'$$collection'}->current();
 
         $result = $collection->findAndModify($command);
@@ -53,6 +56,25 @@ trait Modify
             }
 
             $collection->setState($this, $state);
+        }
+
+        if ($ensure and isset($result->value)) {
+            $set = [];
+
+            foreach ($ensure as $property => $ignored) {
+                if (!isset($out->value[$property])) {
+                    $set[$property] = $this->$property;
+                }
+            }
+
+            if ($set) {
+                $collection->update([
+                    'query' => ['_id' => $this->_id],
+                    'set' => $set,
+                ]);
+
+                $result->value += $set;
+            }
         }
 
         return $result;
