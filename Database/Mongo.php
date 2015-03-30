@@ -477,6 +477,40 @@ class Mongo
         return $collection->ensureIndex($key, $command);
     }
 
+    /**
+     * command:
+     *   collection
+     *
+     * return:
+     */
+    public function drop($command = [])
+    {
+        $collection = $this->popCollection($command);
+
+        return $collection->drop();
+    }
+
+    /**
+     * command:
+     *   collection
+     *
+     * return:
+     *   boolean
+     */
+    public function exists($command = [])
+    {
+        $collection = $this->popCollection($command);
+
+        $command['query']['name'] = (string)$collection;
+        $command['collection'] = 'system.namespaces';
+
+        foreach ($this->find($command) as $ignored) {
+            return true;
+        }
+
+        return false;
+    }
+
     public function listCollections()
     {
         return array_map(
@@ -485,6 +519,16 @@ class Mongo
             },
             $this->db->listCollections()
         );
+    }
+
+    public function findIndexes($command = [])
+    {
+        $collection = $this->popCollection($command);
+
+        $command['query']['ns'] = (string)$collection;
+        $command['collection'] = 'system.indexes';
+
+        return $this->find($command);
     }
 
     protected function popCollection(&$command, $is_object = true)

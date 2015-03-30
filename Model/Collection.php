@@ -192,6 +192,22 @@ class Collection extends \NoFramework\Factory
         return $this->db->distinct($command);
     }
 
+    public function getIndexes($command = [])
+    {
+        return iterator_to_array($this->findIndexes($command));
+    }
+
+    public function getIndex($command = [])
+    {
+        $command['limit'] = 1;
+
+        foreach ($this->findIndexes($command) as $index) {
+            return $index;
+        }
+
+        return false;
+    }
+
     public function normalizeFields($fields)
     {
         return (new Memory)->normalizeFields($fields);

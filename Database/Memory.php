@@ -155,12 +155,19 @@ class Memory implements \IteratorAggregate
 
         $query[$key]['$exists'] = true;
 
-        return array_values(array_unique(array_map(
-            function ($item) use ($key) {
-                return $item[$key];
-            },
-            $this->query($query)
-        )));
+        $out = [];
+
+        foreach ($this->query($query) as $item) {
+            if (is_array($item[$key])) {
+                foreach ($item[$key] as $value) {
+                    $out[is_array($value) ? serialize($value) : $value] = $value;
+                }
+            } else {
+                $out[$item[$key]] = $item[$key];
+            }
+        }
+
+        return array_values($out);
     }
 
     /**

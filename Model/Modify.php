@@ -19,65 +19,65 @@ trait Modify
 
     public function modify($command = [])
     {
-        if ($this->_id) {
-            $command['query'] = ['_id' => $this->_id];
-        } else {
-            $command['query'] = ['_id' => ['$exists' => false]];
-        }
-
-        $command += ['upsert' => true];
-        $command['new'] = true;
-
-        $ensure = &$command['ensure'];
-        unset($command['ensure']);
-
         $collection = $this->{'$$collection'}->current();
 
-        $result = $collection->findAndModify($command);
+        $command['query']['_id'] = $this->_id ?: ['$exists' => false];
+        $command['new'] = true;
+        $command += [
+            'upsert' => !$this->_id,
+            'set' => [],
+            'unset' => [],
+            'ensure' => [],
+            'is_save' => true,
+        ];
 
-        if (isset($result->value)) {
-            $state = $result->value;
+        $command['unset'] += array_filter($command['set'], function ($value) {
+            return is_null($value);
+        });
 
-            $unset = &$command['unset'];
-            $rename = &$command['rename'];
+        if ($command['unset']) {
+            $command['unset'] = array_fill_keys(array_keys($command['unset']), null);
+            $command['set'] = array_diff_key($command['set'], $command['unset']);
 
-            if ($unset or $rename) {
-                $restore = array_fill_keys(
-                    array_keys(array_replace($unset ?: [], $rename ?: [])),
-                    null
-                );
+            $collection->setState($this, array_intersect_key(
+                (new \ReflectionClass($this))->getDefaultProperties() + $command['unset'],
+                $command['unset']
+            ));
 
-                $state += array_intersect_key(
-                    (new \ReflectionClass($this))->getDefaultProperties(),
-                    $restore
-                );
-                
-                $state += $restore;
-            }
-
-            $collection->setState($this, $state);
+            $command['unset'] = array_diff_key($command['unset'], $command['ensure']);
         }
 
-        if ($ensure and isset($result->value)) {
-            $set = [];
-
-            foreach ($ensure as $property => $ignored) {
-                if (!isset($out->value[$property])) {
-                    $set[$property] = $this->$property;
-                }
-            }
-
-            if ($set) {
-                $collection->update([
-                    'query' => ['_id' => $this->_id],
-                    'set' => $set,
-                ]);
-
-                $result->value += $set;
-            }
+        if ($command['set']) {
+            $collection->setState($this, $command['set']);
+            $command['ensure'] = array_diff_key($command['ensure'], $command['set']);
         }
 
-        return $result;
+        foreach ($command['ensure'] as $property => $ignored) {
+            $command['set'][$property] = $this->$property;
+        }
+
+        if ($command['is_save']) {
+            if (!$command['unset']) {
+                unset($command['unset']);
+            }
+
+            if (!$command['set']) {
+                unset($command['set']);
+            }
+
+            unset($command['ensure']);
+            unset($command['is_save']);
+
+            $result = $collection->findAndModify($command);
+
+            if (isset($result->value)) {
+                $collection->setState($this, $result->value);
+            }
+
+            return $result;
+        }
+
+        return false;
     }
 
     public function __set($name, $value)
