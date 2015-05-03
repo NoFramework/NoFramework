@@ -289,13 +289,17 @@ class Config
     protected function __resolve_parse($value)
     {
         $value = is_string($value) ? ['file' => $value] : $value;
+        $value += [
+            'is_object' => true,
+            'is_root' => true,
+        ];
 
-        $out = $this->parseLater($value['file'], 'file', false);
+        $parsed = $this->parseLater($value['file'], 'file', false);
 
         return
-            array_replace(['is_object' => true], $value)['is_object']
-            ? ['$newRoot' => $out]
-            : $out
+            $value['is_object']
+            ? [$value['is_root'] ? '$newRoot' : '$new'  => $parsed]
+            : $parsed
         ;
     }
 
