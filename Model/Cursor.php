@@ -88,38 +88,6 @@ class Cursor implements \IteratorAggregate
         return $result;
     }
 
-    public function countDistinct($fields)
-    {
-        $out = [];
-
-        $register = function ($field, $value) use (&$out) {
-            $key = is_array($value) ? serialize($value) : (string)$value;
-            $distinct = &$out[$field][$key];
-            $distinct['value'] = $value;
-            $count = &$distinct['count'];
-            $count++;
-        };
-
-        foreach ($this->data as $item) {
-            foreach ((array)$fields as $field) {
-                $value = $this->mapper->map('column:' . $field, $item);
-
-                if (
-                    is_array($value) and
-                    array_keys($value) === range(0, count($value) - 1)
-                ) {
-                    foreach ($value as $value_item) {
-                        $register($field, $value_item);
-                    }
-                } else {
-                    $register($field, $value);
-                }
-            }
-        }
-
-        return $out;
-    }
-
     public function print_r($return = false)
     {
         $out = '';
@@ -129,6 +97,89 @@ class Cursor implements \IteratorAggregate
         }
 
         return $return ? $out : true;
+    }
+
+    public function pages($option = [])
+    {
+        $option = array_merge([
+            'page' => 1,
+            'page_size' => 10,
+            'length' => 6,
+            'page_size_list' => false,
+        ], $option);
+
+        $page_size_list = $option['page_size_list'] ?: [];
+        $page_size_list = array_combine($page_size_list, $page_size_list);
+
+        $is_show_all = false;
+        $count = $this->count();
+
+        foreach ($page_size_list as $page_size) {
+            if ($page_size >= $count) {
+                $is_show_all = true;
+                unset($page_size_list[$page_size]);
+            }
+        }
+
+        if ($page_size_list and $is_show_all) {
+            $page_size_list[0] = 0;
+        }
+
+        $pages_total = $option['page_size'] ? ceil($count / $option['page_size']) : 0;
+
+        if ($pages_total < 2) {
+            if ($page_size_list) {
+                return [
+                    'page_size' => [
+                        'list' => $page_size_list,
+                        'active' => 0,
+                    ]
+                ];
+            }
+
+            return [];
+        }
+
+        $active = max((int)$option['page'], 1);
+        $length = $option['length'];
+
+        $out = [
+            'active' => $active
+        ];
+
+        if ($page_size_list) {
+            $out['page_size'] = [
+                'list' => $page_size_list,
+                'active' => $option['page_size'],
+            ];
+        }
+
+        if ($active > 1) {
+            $out['previous'] = $active - 1;
+        }
+
+        if ($active < $pages_total) {
+            $out['next'] = $active + 1;
+        }
+
+        $start = min(max($active - floor($length / 2), 1), max($pages_total - $length + 1, 1));
+        $end = $start + min($length, $pages_total) - 1;
+
+        if ($start > 1) {
+            $out['list'][] = 1;
+            $out['list'][] = false;
+        }
+
+        foreach (range($start, $end) as $page) {
+            $out['list'][] = $page;
+        }
+
+        if ($end < $pages_total) {
+            $out['list'][] = false;
+            $out['list'][] = $pages_total;
+        }
+        
+        return $out;
     }
 }
 
