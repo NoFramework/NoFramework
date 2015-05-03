@@ -9,12 +9,16 @@
  * file that was distributed with this source code.
  */
 
-namespace NoFramework\Service;
+namespace NoFramework\Gearman;
 
-class GearmanWorker extends Application
+class Worker extends \NoFramework\Service\Application
 {
-    protected $gearman;
     protected $run = [];
+
+    protected function __property_gearman()
+    {
+        return new Wrapper;
+    }
 
     protected function main()
     {

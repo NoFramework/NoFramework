@@ -9,11 +9,11 @@
  * file that was distributed with this source code.
  */
 
-namespace NoFramework;
+namespace NoFramework\Gearman;
 
-class Gearman
+class Wrapper
 {
-    use Magic;
+    use \NoFramework\Magic;
 
     protected $server = '127.0.0.1:4730';
     protected $prefix;
