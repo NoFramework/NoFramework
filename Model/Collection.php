@@ -15,6 +15,8 @@ use NoFramework\Database\Memory as Memory;
 
 class Collection extends \NoFramework\Factory
 {
+    protected $item_cache;
+
     protected function __property_name() {}
 
     protected function __property_db()
@@ -268,6 +270,128 @@ class Collection extends \NoFramework\Factory
         $value['class'] = '\\' . $class;
 
         return parent::__resolve_new($value, $as);
+    }
+
+    public function getCachedItem($key, $query)
+    {
+        if (!isset($this->item_cache[$key])) {
+            $this->item_cache[$key] = $this->findOne([
+                'query' => $query,
+                'map' => 'Item',
+                'virtual' => true,
+            ]);
+        }
+
+        return $this->item_cache[$key];
+    }
+
+    public function getById($_id)
+    {
+        if (is_array($_id)) {
+            return $this->find([
+                'query' => ['_id' => [
+                    '$in' => array_map(function ($_id) {
+                        return ($_id instanceof \MongoId) ? $_id : new \MongoId($_id);
+                    }, $_id)
+                ]],
+                'map' => 'Item',
+            ]);
+
+        } else {
+            return $this->findOne([
+                'query' => ['_id' => ($_id instanceof \MongoId) ? $_id : new \MongoId($_id)],
+                'map' => 'Item'
+            ]);
+        }
+    }
+
+    public function removeById($_id)
+    {
+        if (!is_array($_id)) {
+            $_id = [$_id];
+        }
+
+        return $this->remove([
+            'query' => ['_id' => [
+                '$in' => array_map(function ($_id) {
+                    return ($_id instanceof \MongoId) ? $_id : new \MongoId($_id);
+                }, $_id)
+            ]],
+        ]);
+    }
+
+    public function sequence($field)
+    {
+        return (int)$this->sequence->findAndModify([
+            'fields' => [$field => true],
+            'inc' => [$field => (int)1],
+            'upsert' => true,
+        ])->value[$field];
+    }
+
+    public function resort($option = [])
+    {
+        $option += [
+            '_id' => false,
+            'next' => false,
+            'query' => [],
+            'field' => 'sort',
+        ];
+
+        if ($_id = $option['_id']) {
+            $_id = ($_id instanceof \MongoId) ? $_id : new \MongoId($_id);
+
+            $option['query']['_id']['$ne'] = $_id;
+        }
+
+        $sort = 1;
+
+        foreach ($this->find([
+            'query' => $option['query'],
+            'fields' => ['_id' => true],
+            'sort' => [$option['field'] => 1, '_id' => 1],
+        ]) as $item) {
+            if ((string)$option['next'] === (string)$item['_id']) {
+                $key_sort = $sort;
+                $sort++;
+            }
+
+            $this->update([
+                'query' => ['_id' => $item['_id']],
+                'set' => [$option['field'] => (int)$sort],
+            ]);
+
+            $sort++;
+        }
+
+        if ($_id) {
+            $this->update([
+                'query' => ['_id' => $_id],
+                'set' => [
+                    $option['field'] => isset($key_sort) ? (int)$key_sort : (int)$sort,
+                ],
+            ]);
+        }
+    }
+
+    protected function __property_list()
+    {
+        return $this->list();
+    }
+
+    protected function __resolve_list($option = [])
+    {
+        $column = &$option['column'];
+        $column = $column ?: 'title';
+
+        $sort = &$option['sort'];
+        $sort = $sort ?: ['sort' => 1, '_id' => 1];
+
+        unset($option['column']);
+
+        $option['map'] = 'column:' . $column;
+
+        return $this->find($option)->toArray();
     }
 }
 

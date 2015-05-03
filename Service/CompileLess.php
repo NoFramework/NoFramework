@@ -15,11 +15,14 @@ class CompileLess extends Application
 {
     protected $source;
     protected $destination;
+    protected $is_compress = true;
 
     public function main()
     {
         $this->log(shell_exec(
-            "lessc --compress $source/main.less > $destination"
+            "lessc ' . ($this->is_compress ? '--compress ' : '') .
+            $this->source . '/main.less > ' .
+            $this->destination;
         ));
 
         $this->log(sprintf('Compiled %s', $this->destination));
