@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace NoFramework\Service
+namespace NoFramework\Service;
 
 class CompileLess extends Application
 {
