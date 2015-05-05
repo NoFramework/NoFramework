@@ -20,9 +20,9 @@ class CompileLess extends Application
     public function main()
     {
         $this->log(shell_exec(
-            "lessc ' . ($this->is_compress ? '--compress ' : '') .
+            'lessc ' . ($this->is_compress ? '--compress ' : '') .
             $this->source . '/main.less > ' .
-            $this->destination;
+            $this->destination
         ));
 
         $this->log(sprintf('Compiled %s', $this->destination));
